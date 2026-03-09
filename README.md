@@ -1,0 +1,2 @@
+# GuardianStar
+GuardianStar 是一个可直接构建和演示的儿童守护原型项目

@@ -25,13 +25,13 @@ GuardianStar already supports a full working loop:
 
 ### Android Apps
 
-- [Client/src/main/java/com/example/guardianstar/ui/MainActivity.kt](./Client/src/main/java/com/example/guardianstar/ui/MainActivity.kt)
+- [MainActivity.kt](./Client/src/main/java/com/example/guardianstar/ui/MainActivity.kt)
   Child-side UI for permissions, service control, and backend configuration.
-- [Client/src/main/java/com/example/guardianstar/service/LocationTrackingService.kt](./Client/src/main/java/com/example/guardianstar/service/LocationTrackingService.kt)
+- [LocationTrackingService.kt](./Client/src/main/java/com/example/guardianstar/service/LocationTrackingService.kt)
   Foreground location service with safe-zone sync and geofence registration.
-- [Monitor/src/main/java/com/example/guardianstar/monitor/MonitorActivity.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/MonitorActivity.kt)
+- [MonitorActivity.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/MonitorActivity.kt)
   Guardian-side UI with device switching, map display, alert display, and safe-zone actions.
-- [Monitor/src/main/java/com/example/guardianstar/monitor/network/MonitorApi.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/network/MonitorApi.kt)
+- [MonitorApi.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/network/MonitorApi.kt)
   Multi-device API contract for monitor-side queries.
 
 ### Backend

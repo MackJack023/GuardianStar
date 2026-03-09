@@ -1,0 +1,10 @@
+.gradle/
+.idea/
+.vscode/
+**/build/
+**/.gradle/
+**/*.iml
+**/local.properties
+**/server_state.json
+*.hprof
+desktop.ini

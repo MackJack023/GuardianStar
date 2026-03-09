@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">GuardianStar</string>
+    <string name="service_running">GuardianStar protection is running</string>
+    <string name="service_desc">Monitoring location and syncing safe-zone alerts in the background.</string>
+    <string name="notification_channel_name">Location Protection</string>
+    <string name="notification_channel_desc">Shows the active background protection notification.</string>
+</resources>

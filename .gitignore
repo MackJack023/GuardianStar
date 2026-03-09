@@ -1,0 +1,13 @@
+.gradle/
+.idea/
+.vscode/
+**/build/
+**/.gradle/
+**/*.iml
+**/local.properties
+**/server_state.json
+**/__pycache__/
+**/*.pyc
+*.hprof
+desktop.ini
+*build_log.txt

@@ -1,0 +1,16 @@
+services:
+  guardianstar-backend:
+    build:
+      context: ./Client/server
+    container_name: guardianstar-backend
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      GUARDIANSTAR_STATE_FILE: /data/server_state.json
+    volumes:
+      - guardianstar-server-data:/data
+    restart: unless-stopped
+
+volumes:
+  guardianstar-server-data:

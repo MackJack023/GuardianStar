@@ -4,48 +4,103 @@
 [![Release](https://img.shields.io/badge/release-v1.0.0-blue)](./docs/releases/v1.0.0.md)
 [![Platform](https://img.shields.io/badge/platform-Android%20%2B%20Python-3c82f6)](./Client/server/server.py)
 
-GuardianStar is a multi-device family safety prototype built around two Android apps and a lightweight Python backend.
+GuardianStar is a **multi-device family safety prototype** consisting of two Android applications and a lightweight Python backend.
 
-- `Client`: the protected child-side app
-- `Monitor`: the guardian-side monitoring app
-- `Client/server`: the backend that stores locations, alerts, and safe-zone state
+It demonstrates a full **child tracking and guardian monitoring workflow**, including location reporting, alerts, safe-zone configuration, and geofence event detection.
 
-## What It Does
+## Key Features
 
-GuardianStar already supports a full working loop:
+- Child-side Android tracking app (`Client`)
+- Guardian monitoring app (`Monitor`)
+- Multi-device backend using `deviceId`
+- Real-time location reporting
+- Safe-zone assignment and synchronization
+- Android geofence detection for entry and exit events
+- REST API backend with Docker support
+- CI pipeline with automated builds and tests
 
-1. `Client` uploads location and alert events with its own `deviceId`
-2. The backend stores data per device
-3. `Monitor` loads the tracked device list and switches between children
-4. Guardians can assign or remove a safe zone for a specific device
-5. `Client` syncs the safe zone for its own `deviceId` and registers Android Geofence rules
-6. Enter and exit events are reported back to the backend and shown in `Monitor`
+---
 
-## Project Layout
+# System Overview
 
-### Android Apps
+GuardianStar is composed of three main components:
 
-- [MainActivity.kt](./Client/src/main/java/com/example/guardianstar/ui/MainActivity.kt)
-  Child-side UI for permissions, service control, and backend configuration.
-- [LocationTrackingService.kt](./Client/src/main/java/com/example/guardianstar/service/LocationTrackingService.kt)
-  Foreground location service with safe-zone sync and geofence registration.
-- [MonitorActivity.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/MonitorActivity.kt)
-  Guardian-side UI with device switching, map display, alert display, and safe-zone actions.
-- [MonitorApi.kt](./Monitor/src/main/java/com/example/guardianstar/monitor/network/MonitorApi.kt)
-  Multi-device API contract for monitor-side queries.
+| Component | Description |
+|---|---|
+| Client | Android app installed on the child's device |
+| Monitor | Android app used by guardians to track devices |
+| Backend | Python service that stores locations, alerts, and safe-zone data |
 
-### Backend
+### Workflow
 
-- [Client/server/server.py](./Client/server/server.py)
-  Lightweight multi-device HTTP backend.
-- [Client/server/test_server.py](./Client/server/test_server.py)
-  Automated tests for health, per-device isolation, and safe-zone behavior.
-- [compose.yaml](./compose.yaml)
-  Docker Compose entry point for the backend.
+1. The **Client app** uploads location and alert events using its `deviceId`
+2. The **backend** stores all data separately per device
+3. The **Monitor app** retrieves device lists and switches between children
+4. Guardians can assign or remove a **safe zone**
+5. The **Client app** synchronizes safe-zone data and registers Android geofence rules
+6. Entry/exit events are sent back to the backend and displayed in the Monitor app
 
-## API Surface
+This creates a complete **end-to-end safety monitoring loop**.
 
-### Read
+---
+
+# Project Structure
+
+## Android Applications
+
+### Client (Child Device)
+
+Key components:
+
+- `MainActivity.kt`  
+  Handles permissions, service control, and backend configuration.
+
+- `LocationTrackingService.kt`  
+  Foreground location service responsible for:
+  - location updates
+  - safe-zone synchronization
+  - geofence registration
+
+### Monitor (Guardian Device)
+
+Key components:
+
+- `MonitorActivity.kt`  
+  Provides guardian interface for:
+  - device switching
+  - map display
+  - alert monitoring
+  - safe-zone management
+
+- `MonitorApi.kt`  
+  Defines network API for multi-device queries.
+
+---
+
+## Backend
+
+Located in:
+
+
+Main files:
+
+- `server.py`  
+  Lightweight HTTP backend responsible for device data storage.
+
+- `test_server.py`  
+  Unit tests covering:
+  - health endpoint
+  - device isolation
+  - safe-zone behavior
+
+- `compose.yaml`  
+  Docker Compose configuration for backend deployment.
+
+---
+
+# API Overview
+
+## Read Endpoints
 
 - `GET /api/health`
 - `GET /api/devices`
@@ -54,7 +109,7 @@ GuardianStar already supports a full working loop:
 - `GET /api/alerts?deviceId=...`
 - `GET /api/safe-zone?deviceId=...`
 
-### Write
+## Write Endpoints
 
 - `POST /api/location`
 - `POST /api/alert`

@@ -2,12 +2,13 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    open-pull-requests-limit: 0
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "gradle"
     directory: "/Client"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     schedule:
       interval: "weekly"
     ignore:
@@ -40,7 +41,7 @@ updates:
 
   - package-ecosystem: "gradle"
     directory: "/Monitor"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     schedule:
       interval: "weekly"
     ignore:

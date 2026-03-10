@@ -7,10 +7,32 @@ updates:
 
   - package-ecosystem: "gradle"
     directory: "/Client"
+    open-pull-requests-limit: 10
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "com.squareup.retrofit2:retrofit"
+        versions: [">=3.0.0"]
+      - dependency-name: "com.squareup.retrofit2:converter-gson"
+        versions: [">=3.0.0"]
+      - dependency-name: "androidx.activity:activity-compose"
+        versions: [">=1.9.0"]
+      - dependency-name: "gradle-wrapper"
+        versions: [">=9.4.0"]
 
   - package-ecosystem: "gradle"
     directory: "/Monitor"
+    open-pull-requests-limit: 10
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "com.squareup.retrofit2:retrofit"
+        versions: [">=3.0.0"]
+      - dependency-name: "com.squareup.retrofit2:converter-gson"
+        versions: [">=3.0.0"]
+      - dependency-name: "androidx.activity:activity-compose"
+        versions: [">=1.9.0"]
+      - dependency-name: "androidx.core:core-ktx"
+        versions: [">=1.13.0"]
+      - dependency-name: "gradle-wrapper"
+        versions: [">=9.4.0"]

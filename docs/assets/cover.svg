@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="720" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
+  <title id="title">GuardianStar Cover</title>
+  <desc id="desc">Project cover for GuardianStar open source repository.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1b2a"/>
+      <stop offset="55%" stop-color="#1b263b"/>
+      <stop offset="100%" stop-color="#253a59"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00c2ff"/>
+      <stop offset="100%" stop-color="#52ff9a"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="720" fill="url(#bg)"/>
+  <circle cx="1320" cy="140" r="190" fill="#00c2ff" opacity="0.18" filter="url(#soft)"/>
+  <circle cx="260" cy="630" r="200" fill="#52ff9a" opacity="0.13" filter="url(#soft)"/>
+
+  <g transform="translate(120 108)">
+    <rect x="0" y="0" width="660" height="500" rx="24" fill="#0f2238" opacity="0.85" stroke="#3f5f86"/>
+    <text x="48" y="104" fill="#ffffff" font-size="78" font-family="Segoe UI, Arial, sans-serif" font-weight="700">GuardianStar</text>
+    <text x="48" y="158" fill="#8fb5de" font-size="28" font-family="Segoe UI, Arial, sans-serif">Multi-Device Family Safety Platform</text>
+    <rect x="48" y="190" width="250" height="8" rx="4" fill="url(#accent)"/>
+
+    <text x="48" y="264" fill="#d8e6f5" font-size="27" font-family="Segoe UI, Arial, sans-serif">Android Client + Android Monitor + Python API</text>
+    <text x="48" y="316" fill="#d8e6f5" font-size="27" font-family="Segoe UI, Arial, sans-serif">Real-time location, safe-zone sync, geofence alerts</text>
+    <text x="48" y="368" fill="#d8e6f5" font-size="27" font-family="Segoe UI, Arial, sans-serif">CI pipeline with test and APK build automation</text>
+
+    <g transform="translate(48 412)">
+      <rect x="0" y="0" width="166" height="44" rx="22" fill="#163a5c" stroke="#3a6fa1"/>
+      <text x="22" y="29" fill="#e9f4ff" font-size="20" font-family="Segoe UI, Arial, sans-serif">Kotlin</text>
+      <rect x="182" y="0" width="172" height="44" rx="22" fill="#163a5c" stroke="#3a6fa1"/>
+      <text x="204" y="29" fill="#e9f4ff" font-size="20" font-family="Segoe UI, Arial, sans-serif">Python API</text>
+      <rect x="370" y="0" width="170" height="44" rx="22" fill="#163a5c" stroke="#3a6fa1"/>
+      <text x="392" y="29" fill="#e9f4ff" font-size="20" font-family="Segoe UI, Arial, sans-serif">Docker</text>
+    </g>
+  </g>
+
+  <g transform="translate(900 98)">
+    <rect x="0" y="0" width="560" height="524" rx="26" fill="#0f2238" opacity="0.78" stroke="#3f5f86"/>
+    <text x="42" y="72" fill="#c9ddf3" font-size="30" font-family="Segoe UI, Arial, sans-serif" font-weight="600">System Data Flow</text>
+
+    <rect x="42" y="112" width="206" height="92" rx="14" fill="#11304d" stroke="#4b7db4"/>
+    <text x="61" y="165" fill="#ecf5ff" font-size="24" font-family="Segoe UI, Arial, sans-serif">Client App</text>
+
+    <rect x="312" y="112" width="206" height="92" rx="14" fill="#11304d" stroke="#4b7db4"/>
+    <text x="332" y="165" fill="#ecf5ff" font-size="24" font-family="Segoe UI, Arial, sans-serif">Monitor App</text>
+
+    <rect x="177" y="276" width="206" height="106" rx="14" fill="#123655" stroke="#5aa0df"/>
+    <text x="196" y="334" fill="#ecf5ff" font-size="24" font-family="Segoe UI, Arial, sans-serif">Backend API</text>
+
+    <rect x="177" y="426" width="206" height="64" rx="12" fill="#143f5f" stroke="#58d5a5"/>
+    <text x="228" y="468" fill="#e9fff4" font-size="22" font-family="Segoe UI, Arial, sans-serif">State File</text>
+
+    <path d="M 248 160 C 264 160, 260 250, 280 276" stroke="#79c1ff" stroke-width="4" fill="none"/>
+    <path d="M 312 160 C 296 160, 300 250, 280 276" stroke="#79c1ff" stroke-width="4" fill="none"/>
+    <path d="M 280 382 L 280 426" stroke="#85e6b7" stroke-width="4" fill="none"/>
+    <polygon points="272,420 288,420 280,434" fill="#85e6b7"/>
+
+    <text x="92" y="232" fill="#8fb5de" font-size="18" font-family="Segoe UI, Arial, sans-serif">Location + Alerts</text>
+    <text x="332" y="232" fill="#8fb5de" font-size="18" font-family="Segoe UI, Arial, sans-serif">Device Query + Control</text>
+  </g>
+</svg>

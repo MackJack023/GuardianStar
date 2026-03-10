@@ -1,284 +1,231 @@
-# GuardianStar
+<p align="center">
+  <img src="docs/assets/cover.svg" alt="GuardianStar cover" width="100%" />
+</p>
 
-[![Android CI](https://github.com/MackJack023/GuardianStar/actions/workflows/android-ci.yml/badge.svg)](https://github.com/MackJack023/GuardianStar/actions/workflows/android-ci.yml)
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue)](./docs/releases/v1.0.0.md)
-[![Platform](https://img.shields.io/badge/platform-Android%20%2B%20Python-3c82f6)](./Client/server/server.py)
+<h1 align="center">GuardianStar</h1>
+<p align="center">
+  Multi-device family safety platform with Android apps and a lightweight Python backend.
+</p>
 
-GuardianStar is a **multi-device family safety prototype** consisting of two Android applications and a lightweight Python backend.
+<p align="center">
+  <a href="https://github.com/MackJack023/GuardianStar/actions/workflows/android-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MackJack023/GuardianStar/android-ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI Status" /></a>
+  <a href="https://github.com/MackJack023/GuardianStar/releases"><img src="https://img.shields.io/github/v/release/MackJack023/GuardianStar?display_name=tag&logo=github" alt="Latest Release" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/MackJack023/GuardianStar" alt="License" /></a>
+  <img src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white" alt="Android API 26+" />
+  <img src="https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 1.9" />
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12" />
+  <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready" />
+</p>
 
-It demonstrates a full **child tracking and guardian monitoring workflow**, including location reporting, alerts, safe-zone configuration, and geofence event detection.
+<p align="center">
+  <a href="#overview">Overview</a> |
+  <a href="#system-architecture-one-diagram">Architecture</a> |
+  <a href="#app-screenshots">Screenshots</a> |
+  <a href="#quick-start">Quick Start</a> |
+  <a href="#api-surface">API</a> |
+  <a href="#roadmap">Roadmap</a> |
+  <a href="#contributing">Contributing</a>
+</p>
 
-## Key Features
+## Overview
 
-- Child-side Android tracking app (`Client`)
-- Guardian monitoring app (`Monitor`)
-- Multi-device backend using `deviceId`
-- Real-time location reporting
-- Safe-zone assignment and synchronization
-- Android geofence detection for entry and exit events
-- REST API backend with Docker support
-- CI pipeline with automated builds and tests
+GuardianStar is an end-to-end safety monitoring prototype with:
 
----
+- `Client` Android app (child device)
+- `Monitor` Android app (guardian device)
+- Python backend API with per-device state
 
-## System Overview
+The project supports real-time location reporting, safe-zone synchronization, geofence entry/exit alerts, multi-device dashboard monitoring, and automated CI build pipelines.
 
-GuardianStar is composed of three main components:
+## Why This Project
 
-| Component | Description |
+- Demonstrates a complete two-app + backend architecture
+- Uses a clean `deviceId` based data isolation model
+- Includes Dockerized backend startup for quick local deployment
+- Ships with GitHub Actions for tests, Android builds, and release artifacts
+
+## Core Features
+
+- Multi-device tracking and monitor switching
+- Real-time location upload and latest location view
+- Safe-zone create/read/delete by `deviceId`
+- Android geofence integration on Client
+- Alert collection and visualization in Monitor
+- Backend persistence with `server_state.json`
+
+## System Architecture (One Diagram)
+
+```mermaid
+flowchart LR
+  subgraph C["Client App (Android)"]
+    C1["MainActivity\nPermission + Server Config"]
+    C2["LocationTrackingService\nGPS + Geofence"]
+    C3["LocationApi\nPOST /location, /alert\nGET /safe-zone"]
+    C1 --> C2 --> C3
+  end
+
+  subgraph B["Backend API (Python)"]
+    B1["HTTP Handlers\n/api/*"]
+    B2["Per-device State\nlast_location/history/alerts/safe_zone"]
+    B3["server_state.json\npersistence"]
+    B1 --> B2 --> B3
+  end
+
+  subgraph M["Monitor App (Android)"]
+    M1["MonitorActivity\nDevice Switch + Dashboard"]
+    M2["MonitorApi\n/devices + per-device query"]
+    M1 --> M2
+  end
+
+  C3 -- "Upload location + geofence alerts" --> B1
+  M2 -- "Read devices/latest/history/alerts\nSet or clear safe-zone" --> B1
+  B1 -- "Safe-zone config by deviceId" --> C3
+```
+
+Detailed architecture page: [docs/architecture.md](./docs/architecture.md)
+
+## App Screenshots
+
+> Current images are polished placeholders for repository presentation. Replace with real device screenshots anytime without changing layout.
+
+| Client Home | Client Settings |
 |---|---|
-| Client | Android app installed on the child's device |
-| Monitor | Android app used by guardians to track devices |
-| Backend | Python service that stores locations, alerts, and safe-zone data |
+| ![Client home](./docs/assets/screenshots/client-home.svg) | ![Client settings](./docs/assets/screenshots/client-settings.svg) |
 
-### Workflow
+| Monitor Overview | Monitor Safe Zone |
+|---|---|
+| ![Monitor overview](./docs/assets/screenshots/monitor-overview.svg) | ![Monitor safe zone](./docs/assets/screenshots/monitor-safe-zone.svg) |
 
-1. The **Client app** uploads location and alert events using its `deviceId`
-2. The **backend** stores all data separately per device
-3. The **Monitor app** retrieves device lists and switches between children
-4. Guardians can assign or remove a **safe zone**
-5. The **Client app** synchronizes safe-zone data and registers Android geofence rules
-6. Entry/exit events are sent back to the backend and displayed in the Monitor app
+## Tech Stack
 
-This creates a complete **end-to-end safety monitoring loop**.
+| Layer | Stack |
+|---|---|
+| Client App | Kotlin, Jetpack Compose, Retrofit, Google Location/Geofence |
+| Monitor App | Kotlin, Jetpack Compose, Retrofit |
+| Backend | Python 3, `http.server`, JSON state persistence |
+| DevOps | GitHub Actions, Docker Compose |
 
----
-
-## Project Structure
-
-### Android Applications
-
-#### Client (Child Device)
-
-Key components:
-
-- `MainActivity.kt`  
-  Handles permissions, service control, and backend configuration.
-
-- `LocationTrackingService.kt`  
-  Foreground location service responsible for:
-  - location updates
-  - safe-zone synchronization
-  - geofence registration
-
-#### Monitor (Guardian Device)
-
-Key components:
-
-- `MonitorActivity.kt`  
-  Provides guardian interface for:
-  - device switching
-  - map display
-  - alert monitoring
-  - safe-zone management
-
-- `MonitorApi.kt`  
-  Defines network API for multi-device queries.
-
-### Backend
-
-Located in:
+## Repository Layout
 
 ```text
-Client/server
+.
+├─ Client/                # Child device Android app + unified Gradle entry
+│  ├─ src/main/...
+│  └─ server/             # Python backend + tests
+├─ Monitor/               # Guardian Android app module
+├─ docs/
+│  ├─ architecture.md
+│  ├─ releases/v1.0.0.md
+│  └─ assets/
+└─ .github/workflows/
+   └─ android-ci.yml
 ```
-
-Main files:
-
-- `server.py`  
-  Lightweight HTTP backend responsible for device data storage.
-
-- `test_server.py`  
-  Unit tests covering:
-  - health endpoint
-  - device isolation
-  - safe-zone behavior
-
-- `compose.yaml`  
-  Docker Compose configuration for backend deployment.
-
----
-
-## API Overview
-
-### Read Endpoints
-
-```text
-GET /api/health
-GET /api/devices
-GET /api/latest?deviceId=...
-GET /api/history?deviceId=...
-GET /api/alerts?deviceId=...
-GET /api/safe-zone?deviceId=...
-```
-
-### Write Endpoints
-
-```text
-POST /api/location
-POST /api/alert
-POST /api/safe-zone
-DELETE /api/safe-zone?deviceId=...
-```
-
----
 
 ## Quick Start
 
-### Run Backend (Local)
+### 1. Start Backend (Local)
 
 ```bash
 cd Client/server
 python server.py
 ```
 
-Backend will start on:
+Backend default address: `http://localhost:8080`
 
-```text
-http://localhost:8080
-```
-
-### Run Backend with Docker
+### 2. Or Start Backend with Docker
 
 ```bash
 docker compose up --build
 ```
 
-### Build Android Applications
+### 3. Build Both Android Apps
 
 ```bash
 cd Client
-./gradlew clean assembleDebug :monitor:assembleDebug
+./gradlew --no-daemon clean assembleDebug :monitor:assembleDebug
 ```
 
 APK outputs:
 
-```text
-Client/build/outputs/apk/debug/GuardianStar-debug.apk
-Monitor/build/outputs/apk/debug/monitor-debug.apk
-```
+- `Client/build/outputs/apk/debug/GuardianStar-debug.apk`
+- `Monitor/build/outputs/apk/debug/monitor-debug.apk`
 
-### Install APKs
+### 4. Install APKs
 
 ```bash
 adb install -r Client/build/outputs/apk/debug/GuardianStar-debug.apk
 adb install -r Monitor/build/outputs/apk/debug/monitor-debug.apk
 ```
 
----
+## Configuration
 
-## Runtime Configuration
+### Client App
 
-### Client
+Default server URL: `http://10.0.2.2:8080/`
 
-Default backend address:
+For physical devices, update in app:
 
-```text
-http://10.0.2.2:8080/
-```
+- `Profile -> Server Settings`
 
-If running on a **physical device**, update the server address in:
+### Monitor App
 
-```text
-Profile -> Server Settings
-```
-
-Use your computer's LAN IP.
-
-### Monitor
-
-Copy the configuration template:
-
-```text
-Monitor/local.properties.example
-```
-
-Create:
-
-```text
-Monitor/local.properties
-```
-
-Example:
+Copy `Monitor/local.properties.example` to `Monitor/local.properties` and set values:
 
 ```properties
 monitor.baseUrl=http://10.0.2.2:8080/
 amap.webApiKey=your-amap-web-api-key
 ```
 
----
+## API Surface
 
-## Validation
+### Read Endpoints
 
-### Backend Tests
+- `GET /api/health`
+- `GET /api/devices`
+- `GET /api/latest?deviceId=...`
+- `GET /api/history?deviceId=...`
+- `GET /api/alerts?deviceId=...`
+- `GET /api/safe-zone?deviceId=...`
 
-```bash
-python -m unittest discover -s ./Client/server -p "test_*.py"
-```
+### Write Endpoints
 
-### Android Build Verification
+- `POST /api/location`
+- `POST /api/alert`
+- `POST /api/safe-zone`
+- `DELETE /api/safe-zone?deviceId=...`
 
-```bash
-cd Client
-./gradlew clean assembleDebug :monitor:assembleDebug
-```
+## Quality Gates
 
-Both steps were successfully executed before publishing this repository.
+- Backend unit tests: `python -m unittest discover -s .\Client\server -p "test_*.py"`
+- Android build check: `cd Client && .\gradlew.bat --no-daemon clean assembleDebug :monitor:assembleDebug`
+- CI workflow: [android-ci.yml](./.github/workflows/android-ci.yml)
+- Tag release notes: [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
 
----
+## Roadmap
 
-## CI / CD
+- Introduce user authentication and guardian-child ownership model
+- Migrate state from JSON file to SQLite/PostgreSQL
+- Add push notification delivery for geofence alerts
+- Add production-grade API auth middleware and audit logging
+- Improve map interaction and multi-device UX in Monitor app
 
-GitHub Actions workflow:
+## Maturity Notes
 
-```text
-.github/workflows/android-ci.yml
-```
+GuardianStar is release-tagged and CI-validated, but still positioned as a prototype platform rather than a production service. The next milestone should focus on auth, data durability, and security hardening.
 
-The pipeline automatically:
+## Contributing
 
-- runs backend unit tests
-- builds Android debug APKs
-- uploads APK artifacts
-- creates GitHub Releases when pushing `v*` tags
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening pull requests.
 
----
+## Security
 
-## Releases
+For vulnerability reporting, see [SECURITY.md](./SECURITY.md).
 
-Release notes:
+## Code of Conduct
 
-- v1.0.0  
-  `docs/releases/v1.0.0.md`
-
----
-
-## Current Limitations
-
-GuardianStar is currently suitable for **demonstrations and prototype use**, but not production deployment.
-
-Missing components include:
-
-- user authentication and account binding
-- persistent database storage
-- push notifications for alerts
-- production-grade backend framework
-- secure secret and API key management
-
----
-
-## Future Improvements
-
-Potential roadmap:
-
-- Add user authentication and device ownership
-- Replace in-memory storage with a database
-- Introduce push notifications for geofence events
-- Harden backend security and API validation
-- Improve UI and device management experience
-
----
+Community expectations are defined in [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 ## License
 
-See the [LICENSE](./LICENSE) file.
+This project is licensed under the terms in [LICENSE](./LICENSE).
+

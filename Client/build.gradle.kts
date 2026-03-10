@@ -62,7 +62,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.1.0")
     
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     
     // Retrofit & OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

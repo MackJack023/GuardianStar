@@ -10,6 +10,7 @@
 <p align="center">
   <a href="https://github.com/MackJack023/GuardianStar/actions/workflows/android-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MackJack023/GuardianStar/android-ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI Status" /></a>
   <a href="https://github.com/MackJack023/GuardianStar/releases"><img src="https://img.shields.io/github/v/release/MackJack023/GuardianStar?display_name=tag&logo=github" alt="Latest Release" /></a>
+  <a href="https://github.com/MackJack023/GuardianStar/releases"><img src="https://img.shields.io/github/downloads/MackJack023/GuardianStar/total?logo=github" alt="Downloads" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/MackJack023/GuardianStar" alt="License" /></a>
   <img src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white" alt="Android API 26+" />
   <img src="https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 1.9" />
@@ -203,7 +204,7 @@ amap.webApiKey=your-amap-web-api-key
 
 - Architecture: [docs/architecture.md](./docs/architecture.md)
 - Deployment guide: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
-- Release notes: [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
+- Release notes: [docs/releases/v1.0.1.md](./docs/releases/v1.0.1.md), [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
 - Changelog: [CHANGELOG.md](./CHANGELOG.md)
 
 ## Quality Gates
@@ -212,7 +213,7 @@ amap.webApiKey=your-amap-web-api-key
 - Android build check: `cd Client && .\gradlew.bat --no-daemon clean assembleDebug :monitor:assembleDebug`
 - CI workflow: [android-ci.yml](./.github/workflows/android-ci.yml)
 - Dependency update bot: [dependabot.yml](./.github/dependabot.yml)
-- Tag release notes: [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
+- Tag release notes: [docs/releases/v1.0.1.md](./docs/releases/v1.0.1.md)
 
 ## Roadmap
 

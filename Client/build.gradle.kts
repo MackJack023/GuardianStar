@@ -59,7 +59,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.6")
     
     // Google Play Services
-    implementation("com.google.android.gms:play-services-location:21.1.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

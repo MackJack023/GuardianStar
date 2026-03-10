@@ -1,7 +1,7 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.application") version "8.2.2"
+    id("com.android.application") version "8.2.0"
     id("org.jetbrains.kotlin.android") version "1.9.20"
 }
 
@@ -42,7 +42,7 @@ android {
         buildConfigField(
             "String",
             "AMAP_WEB_API_KEY",
-            "\"${localProperty("amap.webApiKey", "2e5db9cf87fa110e67f3593712f0b51c")}\""
+            "\"${localProperty("amap.webApiKey", "your-amap-web-api-key")}\""
         )
     }
 

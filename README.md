@@ -21,7 +21,7 @@ It demonstrates a full **child tracking and guardian monitoring workflow**, incl
 
 ---
 
-# System Overview
+## System Overview
 
 GuardianStar is composed of three main components:
 
@@ -44,11 +44,11 @@ This creates a complete **end-to-end safety monitoring loop**.
 
 ---
 
-# Project Structure
+## Project Structure
 
-## Android Applications
+### Android Applications
 
-### Client (Child Device)
+#### Client (Child Device)
 
 Key components:
 
@@ -61,7 +61,7 @@ Key components:
   - safe-zone synchronization
   - geofence registration
 
-### Monitor (Guardian Device)
+#### Monitor (Guardian Device)
 
 Key components:
 
@@ -75,12 +75,13 @@ Key components:
 - `MonitorApi.kt`  
   Defines network API for multi-device queries.
 
----
-
-## Backend
+### Backend
 
 Located in:
 
+```text
+Client/server
+```
 
 Main files:
 
@@ -98,119 +99,186 @@ Main files:
 
 ---
 
-# API Overview
+## API Overview
 
-## Read Endpoints
+### Read Endpoints
 
-- `GET /api/health`
-- `GET /api/devices`
-- `GET /api/latest?deviceId=...`
-- `GET /api/history?deviceId=...`
-- `GET /api/alerts?deviceId=...`
-- `GET /api/safe-zone?deviceId=...`
+```text
+GET /api/health
+GET /api/devices
+GET /api/latest?deviceId=...
+GET /api/history?deviceId=...
+GET /api/alerts?deviceId=...
+GET /api/safe-zone?deviceId=...
+```
 
-## Write Endpoints
+### Write Endpoints
 
-- `POST /api/location`
-- `POST /api/alert`
-- `POST /api/safe-zone`
-- `DELETE /api/safe-zone?deviceId=...`
+```text
+POST /api/location
+POST /api/alert
+POST /api/safe-zone
+DELETE /api/safe-zone?deviceId=...
+```
+
+---
 
 ## Quick Start
 
-### Run the backend locally
+### Run Backend (Local)
 
-```powershell
-cd Client\server
+```bash
+cd Client/server
 python server.py
 ```
 
-### Or run the backend with Docker
+Backend will start on:
 
-```powershell
+```text
+http://localhost:8080
+```
+
+### Run Backend with Docker
+
+```bash
 docker compose up --build
 ```
 
-### Build both Android apps
+### Build Android Applications
 
-```powershell
+```bash
 cd Client
-.\gradlew.bat clean assembleDebug :monitor:assembleDebug
+./gradlew clean assembleDebug :monitor:assembleDebug
 ```
 
 APK outputs:
 
-- `Client/build/outputs/apk/debug/GuardianStar-debug.apk`
-- `Monitor/build/outputs/apk/debug/monitor-debug.apk`
-
-### Install
-
-```powershell
-adb install -r Client\build\outputs\apk\debug\GuardianStar-debug.apk
-adb install -r Monitor\build\outputs\apk\debug\monitor-debug.apk
+```text
+Client/build/outputs/apk/debug/GuardianStar-debug.apk
+Monitor/build/outputs/apk/debug/monitor-debug.apk
 ```
+
+### Install APKs
+
+```bash
+adb install -r Client/build/outputs/apk/debug/GuardianStar-debug.apk
+adb install -r Monitor/build/outputs/apk/debug/monitor-debug.apk
+```
+
+---
 
 ## Runtime Configuration
 
 ### Client
 
-Default backend URL:
+Default backend address:
 
 ```text
 http://10.0.2.2:8080/
 ```
 
-For physical devices, update the server address from `Profile -> Server Settings` to your machine's LAN IP.
+If running on a **physical device**, update the server address in:
+
+```text
+Profile -> Server Settings
+```
+
+Use your computer's LAN IP.
 
 ### Monitor
 
-Copy [Monitor/local.properties.example](./Monitor/local.properties.example) to `Monitor/local.properties` and customize it:
+Copy the configuration template:
+
+```text
+Monitor/local.properties.example
+```
+
+Create:
+
+```text
+Monitor/local.properties
+```
+
+Example:
 
 ```properties
 monitor.baseUrl=http://10.0.2.2:8080/
 amap.webApiKey=your-amap-web-api-key
 ```
 
+---
+
 ## Validation
 
-### Backend tests
+### Backend Tests
 
-```powershell
-python -m unittest discover -s .\Client\server -p "test_*.py"
+```bash
+python -m unittest discover -s ./Client/server -p "test_*.py"
 ```
 
-### Android build
+### Android Build Verification
 
-```powershell
+```bash
 cd Client
-.\gradlew.bat clean assembleDebug :monitor:assembleDebug
+./gradlew clean assembleDebug :monitor:assembleDebug
 ```
 
-Both commands were run successfully in this repository before publishing.
+Both steps were successfully executed before publishing this repository.
+
+---
 
 ## CI / CD
 
-GitHub Actions is configured in [android-ci.yml](./.github/workflows/android-ci.yml) to:
+GitHub Actions workflow:
 
-- run backend unit tests
-- build both Android debug APKs
-- upload APK artifacts for every push, pull request, and manual run
-- create a GitHub Release with APK assets when a `v*` tag is pushed
+```text
+.github/workflows/android-ci.yml
+```
 
-## Release Notes
+The pipeline automatically:
 
-- [v1.0.0](./docs/releases/v1.0.0.md)
+- runs backend unit tests
+- builds Android debug APKs
+- uploads APK artifacts
+- creates GitHub Releases when pushing `v*` tags
+
+---
+
+## Releases
+
+Release notes:
+
+- v1.0.0  
+  `docs/releases/v1.0.0.md`
+
+---
 
 ## Current Limitations
 
-GuardianStar is now good for demos and internal prototypes, but it is not yet a production system. It still lacks:
+GuardianStar is currently suitable for **demonstrations and prototype use**, but not production deployment.
 
-- authentication and account binding
-- a real database layer
-- push notifications
-- production-grade backend framework and auth middleware
-- secure secret management for map keys
+Missing components include:
+
+- user authentication and account binding
+- persistent database storage
+- push notifications for alerts
+- production-grade backend framework
+- secure secret and API key management
+
+---
+
+## Future Improvements
+
+Potential roadmap:
+
+- Add user authentication and device ownership
+- Replace in-memory storage with a database
+- Introduce push notifications for geofence events
+- Harden backend security and API validation
+- Improve UI and device management experience
+
+---
 
 ## License
 
-See [LICENSE](./LICENSE).
+See the [LICENSE](./LICENSE) file.

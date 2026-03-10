@@ -1,49 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="540" height="1080" viewBox="0 0 540 1080" role="img" aria-labelledby="title desc">
-  <title id="title">Client Settings Screenshot Placeholder</title>
-  <desc id="desc">Placeholder of GuardianStar Client settings screen.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1520" viewBox="0 0 720 1520" role="img" aria-labelledby="title desc">
+  <title id="title">GuardianStar Client Settings Mock Screenshot</title>
+  <desc id="desc">Real-device style screenshot mock for GuardianStar Client settings screen.</desc>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#f0f8ff"/>
-      <stop offset="100%" stop-color="#fbfdff"/>
+    <linearGradient id="pageBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#eef5fb"/>
+      <stop offset="100%" stop-color="#ffffff"/>
     </linearGradient>
+    <linearGradient id="bar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#15344f"/>
+      <stop offset="100%" stop-color="#245a84"/>
+    </linearGradient>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="20" result="off"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="540" height="1080" fill="#d8e6f2"/>
-  <rect x="20" y="20" width="500" height="1040" rx="52" fill="url(#bg)" stroke="#3f5f80" stroke-width="5"/>
-  <rect x="190" y="44" width="160" height="20" rx="10" fill="#31506f"/>
+  <rect width="720" height="1520" fill="#d8e5ef"/>
+  <rect x="62" y="28" width="596" height="1464" rx="64" fill="#11161d" filter="url(#drop)"/>
+  <rect x="80" y="54" width="560" height="1412" rx="52" fill="url(#pageBg)"/>
+  <rect x="280" y="74" width="160" height="24" rx="12" fill="#2b3542"/>
+  <circle cx="470" cy="86" r="7" fill="#4b5563"/>
 
-  <rect x="44" y="92" width="452" height="134" rx="24" fill="#134066"/>
-  <text x="70" y="150" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="36" font-weight="700">Profile</text>
-  <text x="70" y="190" fill="#d6e9fb" font-family="Segoe UI, Arial, sans-serif" font-size="23">Server & Permissions</text>
+  <rect x="110" y="132" width="500" height="132" rx="24" fill="url(#bar)"/>
+  <text x="146" y="190" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700">Profile Settings</text>
+  <text x="146" y="228" fill="#cfe4fb" font-family="Segoe UI, Arial, sans-serif" font-size="23">Client configuration panel</text>
 
-  <rect x="44" y="252" width="452" height="194" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="304" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="600">Backend Address</text>
-  <rect x="70" y="326" width="400" height="52" rx="12" fill="#f2f8fe" stroke="#b9d3ea"/>
-  <text x="84" y="360" fill="#4b6884" font-family="Consolas, monospace" font-size="20">http://192.168.1.33:8080/</text>
-  <rect x="70" y="392" width="148" height="38" rx="19" fill="#0f5d94"/>
-  <text x="98" y="417" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="20">Save</text>
+  <rect x="110" y="292" width="500" height="228" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="346" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Backend Address</text>
+  <rect x="138" y="372" width="444" height="56" rx="14" fill="#f3f8fd" stroke="#d3e2f1"/>
+  <text x="150" y="406" fill="#486783" font-family="Consolas, monospace" font-size="20">http://192.168.1.88:8080/</text>
+  <rect x="138" y="446" width="132" height="42" rx="21" fill="#0f5d94"/>
+  <text x="175" y="473" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600">Save</text>
 
-  <rect x="44" y="474" width="452" height="286" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="526" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="600">Permissions</text>
+  <rect x="110" y="548" width="500" height="368" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="602" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Permission Center</text>
 
-  <rect x="70" y="548" width="400" height="54" rx="12" fill="#f4f9ff"/>
-  <text x="84" y="582" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Fine Location</text>
-  <rect x="386" y="560" width="70" height="30" rx="15" fill="#bdeccd"/>
-  <circle cx="440" cy="575" r="11" fill="#12874c"/>
+  <rect x="138" y="624" width="444" height="64" rx="14" fill="#f4f9fe"/>
+  <text x="156" y="664" fill="#506a85" font-family="Segoe UI, Arial, sans-serif" font-size="22">Fine Location</text>
+  <rect x="494" y="641" width="72" height="30" rx="15" fill="#b7ecd0"/>
+  <circle cx="548" cy="656" r="11" fill="#12864b"/>
 
-  <rect x="70" y="614" width="400" height="54" rx="12" fill="#f4f9ff"/>
-  <text x="84" y="648" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Background Location</text>
-  <rect x="386" y="626" width="70" height="30" rx="15" fill="#bdeccd"/>
-  <circle cx="440" cy="641" r="11" fill="#12874c"/>
+  <rect x="138" y="700" width="444" height="64" rx="14" fill="#f4f9fe"/>
+  <text x="156" y="740" fill="#506a85" font-family="Segoe UI, Arial, sans-serif" font-size="22">Background Location</text>
+  <rect x="494" y="717" width="72" height="30" rx="15" fill="#b7ecd0"/>
+  <circle cx="548" cy="732" r="11" fill="#12864b"/>
 
-  <rect x="70" y="680" width="400" height="54" rx="12" fill="#f4f9ff"/>
-  <text x="84" y="714" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Notifications</text>
-  <rect x="386" y="692" width="70" height="30" rx="15" fill="#bdeccd"/>
-  <circle cx="440" cy="707" r="11" fill="#12874c"/>
+  <rect x="138" y="776" width="444" height="64" rx="14" fill="#f4f9fe"/>
+  <text x="156" y="816" fill="#506a85" font-family="Segoe UI, Arial, sans-serif" font-size="22">Notifications</text>
+  <rect x="494" y="793" width="72" height="30" rx="15" fill="#b7ecd0"/>
+  <circle cx="548" cy="808" r="11" fill="#12864b"/>
 
-  <rect x="44" y="786" width="452" height="236" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="838" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="600">Device Identity</text>
-  <text x="70" y="878" fill="#4b6884" font-family="Consolas, monospace" font-size="21">device-5f29c8ab</text>
-  <rect x="70" y="900" width="168" height="40" rx="20" fill="#e2f1ff"/>
-  <text x="94" y="926" fill="#14527e" font-family="Segoe UI, Arial, sans-serif" font-size="20">Copy ID</text>
+  <rect x="138" y="852" width="444" height="48" rx="12" fill="#f9fbfe"/>
+  <text x="156" y="883" fill="#8a9caf" font-family="Segoe UI, Arial, sans-serif" font-size="19">No blocked permissions</text>
+
+  <rect x="110" y="944" width="500" height="284" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="998" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Device Identity</text>
+  <text x="138" y="1040" fill="#55708b" font-family="Consolas, monospace" font-size="22">device-5f29c8ab-guardianstar</text>
+  <rect x="138" y="1062" width="182" height="46" rx="23" fill="#e6f2ff"/>
+  <text x="181" y="1092" fill="#1a5888" font-family="Segoe UI, Arial, sans-serif" font-size="21">Copy ID</text>
+  <rect x="338" y="1062" width="174" height="46" rx="23" fill="#e9f7ee"/>
+  <text x="381" y="1092" fill="#1e7b48" font-family="Segoe UI, Arial, sans-serif" font-size="21">Rotate</text>
+
+  <rect x="188" y="1262" width="344" height="8" rx="4" fill="#222b36" opacity="0.75"/>
 </svg>

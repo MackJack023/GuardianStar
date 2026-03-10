@@ -23,6 +23,7 @@
   <a href="#app-screenshots">Screenshots</a> |
   <a href="#quick-start">Quick Start</a> |
   <a href="#api-surface">API</a> |
+  <a href="#documentation">Docs</a> |
   <a href="#roadmap">Roadmap</a> |
   <a href="#contributing">Contributing</a>
 </p>
@@ -86,7 +87,11 @@ Detailed architecture page: [docs/architecture.md](./docs/architecture.md)
 
 ## App Screenshots
 
-> Current images are polished placeholders for repository presentation. Replace with real device screenshots anytime without changing layout.
+The screenshot set below is now rendered in a unified real-device style:
+
+- consistent aspect ratio and frame
+- rounded corners, drop shadow, and top status bar
+- ready to swap with future real captures while preserving README layout
 
 | Client Home | Client Settings |
 |---|---|
@@ -194,11 +199,19 @@ amap.webApiKey=your-amap-web-api-key
 - `POST /api/safe-zone`
 - `DELETE /api/safe-zone?deviceId=...`
 
+## Documentation
+
+- Architecture: [docs/architecture.md](./docs/architecture.md)
+- Deployment guide: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+- Release notes: [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
+
 ## Quality Gates
 
 - Backend unit tests: `python -m unittest discover -s .\Client\server -p "test_*.py"`
 - Android build check: `cd Client && .\gradlew.bat --no-daemon clean assembleDebug :monitor:assembleDebug`
 - CI workflow: [android-ci.yml](./.github/workflows/android-ci.yml)
+- Dependency update bot: [dependabot.yml](./.github/dependabot.yml)
 - Tag release notes: [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
 
 ## Roadmap
@@ -217,6 +230,8 @@ GuardianStar is release-tagged and CI-validated, but still positioned as a proto
 
 Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening pull requests.
 
+Issue and PR templates are pre-configured in `.github/`.
+
 ## Security
 
 For vulnerability reporting, see [SECURITY.md](./SECURITY.md).
@@ -228,4 +243,3 @@ Community expectations are defined in [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 ## License
 
 This project is licensed under the terms in [LICENSE](./LICENSE).
-

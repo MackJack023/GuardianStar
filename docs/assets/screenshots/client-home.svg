@@ -1,42 +1,64 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="540" height="1080" viewBox="0 0 540 1080" role="img" aria-labelledby="title desc">
-  <title id="title">Client Home Screenshot Placeholder</title>
-  <desc id="desc">Placeholder of GuardianStar Client home screen.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1520" viewBox="0 0 720 1520" role="img" aria-labelledby="title desc">
+  <title id="title">GuardianStar Client Home Mock Screenshot</title>
+  <desc id="desc">Real-device style screenshot mock for GuardianStar Client home.</desc>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#e9f6ff"/>
-      <stop offset="100%" stop-color="#f7fbff"/>
+    <linearGradient id="pageBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#eff6fb"/>
+      <stop offset="100%" stop-color="#ffffff"/>
     </linearGradient>
-    <linearGradient id="top" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0e3f69"/>
-      <stop offset="100%" stop-color="#17639a"/>
+    <linearGradient id="hero" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f3960"/>
+      <stop offset="100%" stop-color="#1f6ca5"/>
     </linearGradient>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="20" result="off"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="540" height="1080" fill="#d8e6f2"/>
-  <rect x="20" y="20" width="500" height="1040" rx="52" fill="url(#bg)" stroke="#3f5f80" stroke-width="5"/>
-  <rect x="190" y="44" width="160" height="20" rx="10" fill="#31506f"/>
+  <rect width="720" height="1520" fill="#d8e5ef"/>
+  <rect x="62" y="28" width="596" height="1464" rx="64" fill="#11161d" filter="url(#drop)"/>
+  <rect x="80" y="54" width="560" height="1412" rx="52" fill="url(#pageBg)"/>
+  <rect x="280" y="74" width="160" height="24" rx="12" fill="#2b3542"/>
+  <circle cx="470" cy="86" r="7" fill="#4b5563"/>
 
-  <rect x="44" y="92" width="452" height="212" rx="28" fill="url(#top)"/>
-  <text x="74" y="162" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700">GuardianStar</text>
-  <text x="74" y="206" fill="#d2e8ff" font-family="Segoe UI, Arial, sans-serif" font-size="24">Client Device</text>
-  <text x="74" y="250" fill="#d2e8ff" font-family="Segoe UI, Arial, sans-serif" font-size="24">Tracking: Active</text>
+  <rect x="110" y="132" width="500" height="214" rx="28" fill="url(#hero)"/>
+  <text x="146" y="198" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">GuardianStar</text>
+  <text x="146" y="240" fill="#cae5ff" font-family="Segoe UI, Arial, sans-serif" font-size="24">Client Device</text>
+  <text x="146" y="274" fill="#cae5ff" font-family="Segoe UI, Arial, sans-serif" font-size="24">Tracking Active</text>
+  <rect x="446" y="174" width="132" height="42" rx="21" fill="#d0ffe0"/>
+  <text x="484" y="202" fill="#0c7f3d" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600">LIVE</text>
 
-  <rect x="44" y="336" width="452" height="164" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="386" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="600">Current Location</text>
-  <text x="70" y="426" fill="#54718d" font-family="Segoe UI, Arial, sans-serif" font-size="22">Latitude: 1.3021</text>
-  <text x="70" y="458" fill="#54718d" font-family="Segoe UI, Arial, sans-serif" font-size="22">Longitude: 103.8198</text>
+  <rect x="110" y="374" width="500" height="184" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="428" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Current Location</text>
+  <text x="138" y="468" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Latitude  1.30215</text>
+  <text x="138" y="502" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Longitude 103.81984</text>
+  <text x="138" y="536" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Updated   10:41:22</text>
 
-  <rect x="44" y="526" width="452" height="208" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="576" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="600">Safe Zone</text>
-  <rect x="70" y="604" width="180" height="44" rx="22" fill="#c3f3da"/>
-  <text x="96" y="634" fill="#0c6d39" font-family="Segoe UI, Arial, sans-serif" font-size="22">Synced</text>
-  <text x="70" y="680" fill="#54718d" font-family="Segoe UI, Arial, sans-serif" font-size="22">Radius: 120m</text>
-  <text x="70" y="712" fill="#54718d" font-family="Segoe UI, Arial, sans-serif" font-size="22">Last Update: 10:22</text>
+  <rect x="110" y="586" width="500" height="250" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="640" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Safe Zone Status</text>
+  <rect x="138" y="664" width="152" height="44" rx="22" fill="#d9f5e6"/>
+  <text x="178" y="692" fill="#0d7f45" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">Synced</text>
+  <text x="138" y="742" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Center   1.30196, 103.81960</text>
+  <text x="138" y="776" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Radius   120 m</text>
+  <text x="138" y="810" fill="#5a748f" font-family="Segoe UI, Arial, sans-serif" font-size="23">Policy   Enter/Exit geofence alerts</text>
 
-  <rect x="44" y="760" width="452" height="132" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="812" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="600">Server Config</text>
-  <text x="70" y="850" fill="#54718d" font-family="Segoe UI, Arial, sans-serif" font-size="22">http://10.0.2.2:8080/</text>
+  <rect x="110" y="864" width="500" height="212" rx="20" fill="#ffffff" stroke="#d8e3ee"/>
+  <text x="138" y="918" fill="#20374e" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Server Profile</text>
+  <rect x="138" y="938" width="444" height="56" rx="14" fill="#f3f8fd" stroke="#d3e2f1"/>
+  <text x="152" y="973" fill="#496884" font-family="Consolas, monospace" font-size="20">http://10.0.2.2:8080/</text>
+  <rect x="138" y="1010" width="148" height="42" rx="21" fill="#e8f2fc"/>
+  <text x="178" y="1037" fill="#1f5e90" font-family="Segoe UI, Arial, sans-serif" font-size="21">Edit</text>
 
-  <rect x="44" y="922" width="452" height="100" rx="18" fill="#0f4f81"/>
-  <text x="173" y="982" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="600">Stop Tracking</text>
+  <rect x="110" y="1108" width="500" height="112" rx="18" fill="#0f4f81"/>
+  <text x="247" y="1175" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="650">Stop Tracking</text>
+
+  <rect x="188" y="1262" width="344" height="8" rx="4" fill="#222b36" opacity="0.75"/>
 </svg>

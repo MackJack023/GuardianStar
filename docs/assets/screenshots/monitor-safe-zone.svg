@@ -1,40 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="540" height="1080" viewBox="0 0 540 1080" role="img" aria-labelledby="title desc">
-  <title id="title">Monitor Safe Zone Screenshot Placeholder</title>
-  <desc id="desc">Placeholder of GuardianStar Monitor safe-zone editor.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1520" viewBox="0 0 720 1520" role="img" aria-labelledby="title desc">
+  <title id="title">GuardianStar Monitor Safe Zone Mock Screenshot</title>
+  <desc id="desc">Real-device style screenshot mock for GuardianStar Monitor safe-zone configuration.</desc>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#f5fbff"/>
-      <stop offset="100%" stop-color="#fcfeff"/>
+    <linearGradient id="pageBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#edf5fb"/>
+      <stop offset="100%" stop-color="#ffffff"/>
     </linearGradient>
+    <linearGradient id="bar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#173f5f"/>
+      <stop offset="100%" stop-color="#2b719f"/>
+    </linearGradient>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="20" result="off"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="540" height="1080" fill="#d8e7f0"/>
-  <rect x="20" y="20" width="500" height="1040" rx="52" fill="url(#bg)" stroke="#3f5f80" stroke-width="5"/>
-  <rect x="190" y="44" width="160" height="20" rx="10" fill="#31506f"/>
+  <rect width="720" height="1520" fill="#d5e3ed"/>
+  <rect x="62" y="28" width="596" height="1464" rx="64" fill="#11161d" filter="url(#drop)"/>
+  <rect x="80" y="54" width="560" height="1412" rx="52" fill="url(#pageBg)"/>
+  <rect x="280" y="74" width="160" height="24" rx="12" fill="#2b3542"/>
+  <circle cx="470" cy="86" r="7" fill="#4b5563"/>
 
-  <rect x="44" y="92" width="452" height="164" rx="24" fill="#173f5f"/>
-  <text x="70" y="152" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="35" font-weight="700">Safe Zone Manager</text>
-  <text x="70" y="196" fill="#d7e9fb" font-family="Segoe UI, Arial, sans-serif" font-size="23">Selected: A-Child</text>
-  <text x="70" y="228" fill="#d7e9fb" font-family="Segoe UI, Arial, sans-serif" font-size="23">Status: Active</text>
+  <rect x="110" y="132" width="500" height="160" rx="24" fill="url(#bar)"/>
+  <text x="146" y="194" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="37" font-weight="700">Safe Zone Manager</text>
+  <text x="146" y="234" fill="#d5e8f8" font-family="Segoe UI, Arial, sans-serif" font-size="23">Selected: A-Child</text>
+  <rect x="454" y="176" width="126" height="42" rx="21" fill="#d7f4e4"/>
+  <text x="494" y="203" fill="#137f49" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="600">ACTIVE</text>
 
-  <rect x="44" y="284" width="452" height="338" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="336" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="600">Geofence Center</text>
-  <rect x="70" y="360" width="400" height="236" rx="14" fill="#eef7ff" stroke="#bfd9ef"/>
-  <circle cx="270" cy="478" r="16" fill="#16588a"/>
-  <circle cx="270" cy="478" r="88" fill="#58a9e8" opacity="0.26"/>
-  <circle cx="270" cy="478" r="124" fill="none" stroke="#2b8bd6" stroke-width="4" stroke-dasharray="10,8"/>
+  <rect x="110" y="320" width="500" height="468" rx="20" fill="#ffffff" stroke="#d6e3ef"/>
+  <text x="138" y="374" fill="#20384f" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Fence Preview</text>
+  <rect x="138" y="398" width="444" height="362" rx="14" fill="#edf6ff" stroke="#d2e3f4"/>
+  <circle cx="360" cy="582" r="18" fill="#19639a"/>
+  <circle cx="360" cy="582" r="102" fill="#54a7e3" opacity="0.24"/>
+  <circle cx="360" cy="582" r="146" fill="none" stroke="#2e8dd8" stroke-width="5" stroke-dasharray="10,8"/>
+  <text x="165" y="744" fill="#587592" font-family="Segoe UI, Arial, sans-serif" font-size="20">Map view centered on live child location</text>
 
-  <rect x="44" y="648" width="452" height="222" rx="20" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="70" y="700" fill="#18324a" font-family="Segoe UI, Arial, sans-serif" font-size="27" font-weight="600">Safe Zone Config</text>
-  <text x="70" y="738" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Latitude: 1.30025</text>
-  <text x="70" y="770" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Longitude: 103.81090</text>
-  <text x="70" y="802" fill="#4b6884" font-family="Segoe UI, Arial, sans-serif" font-size="22">Radius: 120m</text>
-  <rect x="310" y="726" width="160" height="44" rx="22" fill="#e2f1ff"/>
-  <text x="346" y="754" fill="#14527e" font-family="Segoe UI, Arial, sans-serif" font-size="20">Edit</text>
+  <rect x="110" y="816" width="500" height="270" rx="20" fill="#ffffff" stroke="#d6e3ef"/>
+  <text x="138" y="870" fill="#20384f" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="650">Fence Parameters</text>
+  <text x="138" y="912" fill="#57718c" font-family="Segoe UI, Arial, sans-serif" font-size="23">Latitude   1.30025</text>
+  <text x="138" y="946" fill="#57718c" font-family="Segoe UI, Arial, sans-serif" font-size="23">Longitude  103.81090</text>
+  <text x="138" y="980" fill="#57718c" font-family="Segoe UI, Arial, sans-serif" font-size="23">Radius     120 m</text>
+  <rect x="418" y="926" width="164" height="44" rx="22" fill="#e5f2ff"/>
+  <text x="462" y="954" fill="#1f5f91" font-family="Segoe UI, Arial, sans-serif" font-size="21">Edit</text>
+  <text x="138" y="1030" fill="#8397ab" font-family="Segoe UI, Arial, sans-serif" font-size="19">Updated by guardian at 10:43:57</text>
 
-  <rect x="44" y="894" width="216" height="128" rx="18" fill="#1463a0"/>
-  <text x="86" y="972" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">Save Zone</text>
+  <rect x="110" y="1114" width="238" height="112" rx="18" fill="#1666a2"/>
+  <text x="170" y="1181" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="650">Save</text>
+  <rect x="372" y="1114" width="238" height="112" rx="18" fill="#ffffff" stroke="#d6e3ef"/>
+  <text x="430" y="1181" fill="#9a3f48" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="650">Remove</text>
 
-  <rect x="280" y="894" width="216" height="128" rx="18" fill="#ffffff" stroke="#c2d9ed"/>
-  <text x="312" y="972" fill="#8c3840" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600">Remove</text>
+  <rect x="188" y="1262" width="344" height="8" rx="4" fill="#222b36" opacity="0.75"/>
 </svg>

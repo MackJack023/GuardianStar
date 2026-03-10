@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose an enhancement
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest a feature with practical context and expected impact.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user or technical problem does this solve?
+      placeholder: Current limitation...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe your preferred solution
+      placeholder: We can add...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional alternative ideas
+      placeholder: Another option is...
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      description: How this improves the project
+      placeholder: Better onboarding, safer data flow, etc.

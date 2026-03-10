@@ -6,6 +6,9 @@
 **/*.iml
 **/local.properties
 **/server_state.json
+**/guardianstar.db
+**/guardianstar.db-shm
+**/guardianstar.db-wal
 **/__pycache__/
 **/*.pyc
 *.hprof

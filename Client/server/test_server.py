@@ -3,12 +3,13 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-from http.server import HTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 import tempfile
 import threading
 import time
 import unittest
+import urllib.error
 import urllib.request
 
 
@@ -24,7 +25,7 @@ class GuardianServerTest(unittest.TestCase):
         assert spec.loader is not None
         spec.loader.exec_module(cls.module)
 
-        cls.httpd = HTTPServer(("127.0.0.1", 8093), cls.module.LocationHandler)
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 8093), cls.module.LocationHandler)
         cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
         cls.thread.start()
         time.sleep(0.3)
@@ -33,9 +34,16 @@ class GuardianServerTest(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.httpd.shutdown()
         cls.thread.join(timeout=2)
+        cls.httpd.server_close()
         cls.temp_dir.cleanup()
 
-    def request(self, method: str, path: str, payload: dict | None = None) -> dict | list:
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict | None = None,
+        expect_status: int = 200,
+    ) -> dict | list:
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             f"http://127.0.0.1:8093{path}",
@@ -43,8 +51,17 @@ class GuardianServerTest(unittest.TestCase):
             method=method,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request) as response:
-            return json.loads(response.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(request) as response:
+                status_code = response.getcode()
+                body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as error:
+            status_code = error.code
+            body = error.read().decode("utf-8")
+            error.close()
+
+        self.assertEqual(status_code, expect_status)
+        return json.loads(body)
 
     def test_health_endpoint(self) -> None:
         payload = self.request("GET", "/api/health")
@@ -87,6 +104,24 @@ class GuardianServerTest(unittest.TestCase):
 
         cleared = self.request("DELETE", "/api/safe-zone?deviceId=device-B")
         self.assertFalse(cleared["active"])
+
+    def test_location_payload_requires_coordinates(self) -> None:
+        response = self.request(
+            "POST",
+            "/api/location",
+            {"deviceId": "device-C", "timestamp": 1700000002000},
+            expect_status=400,
+        )
+        self.assertIn("latitude and longitude", response["error"])
+
+    def test_safe_zone_radius_must_be_positive(self) -> None:
+        response = self.request(
+            "POST",
+            "/api/safe-zone",
+            {"deviceId": "device-D", "latitude": 1.2, "longitude": 2.3, "radius": 0},
+            expect_status=400,
+        )
+        self.assertIn("radius must be greater than 0", response["error"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 import datetime as dt
@@ -180,7 +180,12 @@ def html_page() -> str:
     else:
         last_location = active_device["last_location"]
         safe_zone = active_device["safe_zone"]
-        location_summary = f"{last_location.get('latitude'):.5f}, {last_location.get('longitude'):.5f}"
+        latitude = last_location.get("latitude")
+        longitude = last_location.get("longitude")
+        if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
+            location_summary = f"{float(latitude):.5f}, {float(longitude):.5f}"
+        else:
+            location_summary = "Unknown"
         status_html = f"""
             <div class="info-item"><span class="label">Device:</span><span class="value">{active_device['deviceId'][-6:].upper()}</span></div>
             <div class="info-item"><span class="label">Updated:</span><span class="value">{last_location.get('time_str')}</span></div>
@@ -333,18 +338,34 @@ class LocationHandler(BaseHTTPRequestHandler):
                 json_response(self, 400, {"error": "deviceId is required"})
                 return
 
-            timestamp = int(payload.get("timestamp", now_timestamp_ms()))
-            payload["time_str"] = format_timestamp(timestamp)
+            try:
+                latitude = float(payload["latitude"])
+                longitude = float(payload["longitude"])
+            except (KeyError, TypeError, ValueError):
+                json_response(self, 400, {"error": "latitude and longitude are required"})
+                return
+
+            try:
+                timestamp = int(payload.get("timestamp", now_timestamp_ms()))
+            except (TypeError, ValueError):
+                timestamp = now_timestamp_ms()
+
+            location_payload = dict(payload)
+            location_payload["deviceId"] = device_id
+            location_payload["latitude"] = latitude
+            location_payload["longitude"] = longitude
+            location_payload["timestamp"] = timestamp
+            location_payload["time_str"] = format_timestamp(timestamp)
 
             device = get_device_state(device_id, create=True)
-            device["last_location"] = payload
-            device["location_history"].append(payload)
+            device["last_location"] = location_payload
+            device["location_history"].append(location_payload)
             device["location_history"] = device["location_history"][-MAX_HISTORY:]
             save_state()
 
             print(
-                f"[location] device={device_id} time={payload['time_str']} "
-                f"lat={payload.get('latitude')} lng={payload.get('longitude')}"
+                f"[location] device={device_id} time={location_payload['time_str']} "
+                f"lat={location_payload.get('latitude')} lng={location_payload.get('longitude')}"
             )
             json_response(self, 200, {"status": "success"})
             return
@@ -379,6 +400,9 @@ class LocationHandler(BaseHTTPRequestHandler):
                 radius = float(payload.get("radius", 100.0))
             except (KeyError, TypeError, ValueError):
                 json_response(self, 400, {"error": "latitude, longitude and radius are required"})
+                return
+            if radius <= 0:
+                json_response(self, 400, {"error": "radius must be greater than 0"})
                 return
 
             device = get_device_state(device_id, create=True)
@@ -431,8 +455,8 @@ class LocationHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server_address = ("", PORT)
-    HTTPServer.allow_reuse_address = True
-    httpd = HTTPServer(server_address, LocationHandler)
+    ThreadingHTTPServer.allow_reuse_address = True
+    httpd = ThreadingHTTPServer(server_address, LocationHandler)
 
     print("GuardianStar backend started")
     print(f"Health: http://localhost:{PORT}/api/health")

@@ -8,6 +8,7 @@ This document provides practical deployment paths for GuardianStar.
 
 ```bash
 cd Client/server
+pip install -r requirements.txt
 python server.py
 ```
 
@@ -44,20 +45,25 @@ docker compose down
 Backend supports:
 
 - `PORT` (default `8080`)
-- `GUARDIANSTAR_STATE_FILE` (default `Client/server/server_state.json`)
+- `GUARDIANSTAR_DATABASE_URL` (default `sqlite:///Client/server/guardianstar.db`)
+- `GUARDIANSTAR_LEGACY_STATE_FILE` (default `Client/server/server_state.json`)
+- `GUARDIANSTAR_ALERT_WEBHOOK_URL` (optional webhook sink for alert fan-out)
+- `GUARDIANSTAR_CORS_ORIGINS` (comma separated origins, default `*`)
 
 Example:
 
 ```bash
-PORT=8080 GUARDIANSTAR_STATE_FILE=/data/server_state.json python server.py
+PORT=8080 \
+GUARDIANSTAR_DATABASE_URL=sqlite:///./guardianstar.db \
+GUARDIANSTAR_LEGACY_STATE_FILE=./server_state.json \
+python server.py
 ```
 
 ## 4. Production Hardening Checklist
 
 - Put backend behind a reverse proxy (Nginx/Caddy)
-- Add API authentication and request rate limiting
-- Move persistence to SQLite/PostgreSQL
-- Back up persistent state on schedule
-- Store map keys and secrets outside repository files
-- Enable HTTPS termination for all client/backend traffic
-
+- Enable TLS for all app-backend traffic
+- Restrict `GUARDIANSTAR_CORS_ORIGINS` for production domains
+- Rotate webhook credentials and avoid hardcoding secrets
+- Back up SQLite file (or migrate to PostgreSQL profile)
+- Add API authentication + guardian-child ownership authorization

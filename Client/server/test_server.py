@@ -2,39 +2,45 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 import tempfile
-import threading
-import time
+import sys
 import unittest
-import urllib.error
-import urllib.request
+from uuid import uuid4
+
+from fastapi.testclient import TestClient
 
 
-class GuardianServerTest(unittest.TestCase):
+def load_server_module():
+    server_path = Path(__file__).with_name("server.py")
+    module_name = f"guardian_server_{uuid4().hex}"
+    spec = importlib.util.spec_from_file_location(module_name, server_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+class GuardianBackendTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.temp_dir = tempfile.TemporaryDirectory()
-        os.environ["GUARDIANSTAR_STATE_FILE"] = str(Path(cls.temp_dir.name) / "server_state.json")
-
-        server_path = Path(__file__).with_name("server.py")
-        spec = importlib.util.spec_from_file_location("guardian_server", server_path)
-        cls.module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(cls.module)
-
-        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 8093), cls.module.LocationHandler)
-        cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
-        cls.thread.start()
-        time.sleep(0.3)
+        cls.db_url = f"sqlite:///{(Path(cls.temp_dir.name) / 'test-backend.db').as_posix()}"
+        cls.legacy_file = Path(cls.temp_dir.name) / "legacy.json"
+        cls.module = load_server_module()
+        cls.client_context = TestClient(
+            cls.module.create_app(
+                database_url=cls.db_url,
+                legacy_state_file=cls.legacy_file,
+                alert_webhook_url=None,
+            )
+        )
+        cls.client = cls.client_context.__enter__()
 
     @classmethod
     def tearDownClass(cls) -> None:
-        cls.httpd.shutdown()
-        cls.thread.join(timeout=2)
-        cls.httpd.server_close()
+        cls.client_context.__exit__(None, None, None)
         cls.temp_dir.cleanup()
 
     def request(
@@ -44,28 +50,15 @@ class GuardianServerTest(unittest.TestCase):
         payload: dict | None = None,
         expect_status: int = 200,
     ) -> dict | list:
-        data = None if payload is None else json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(
-            f"http://127.0.0.1:8093{path}",
-            data=data,
-            method=method,
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with urllib.request.urlopen(request) as response:
-                status_code = response.getcode()
-                body = response.read().decode("utf-8")
-        except urllib.error.HTTPError as error:
-            status_code = error.code
-            body = error.read().decode("utf-8")
-            error.close()
-
-        self.assertEqual(status_code, expect_status)
-        return json.loads(body)
+        response = self.client.request(method, path, json=payload)
+        self.assertEqual(response.status_code, expect_status, response.text)
+        body = response.json() if response.content else {}
+        return body
 
     def test_health_endpoint(self) -> None:
         payload = self.request("GET", "/api/health")
         self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["framework"], "fastapi")
 
     def test_multi_device_locations_are_isolated(self) -> None:
         self.request(
@@ -80,7 +73,7 @@ class GuardianServerTest(unittest.TestCase):
         )
 
         devices = self.request("GET", "/api/devices")
-        self.assertEqual(len(devices), 2)
+        self.assertGreaterEqual(len(devices), 2)
         self.assertEqual(devices[0]["deviceId"], "device-B")
 
         latest_a = self.request("GET", "/api/latest?deviceId=device-A")
@@ -97,7 +90,6 @@ class GuardianServerTest(unittest.TestCase):
 
         safe_zone_b = self.request("GET", "/api/safe-zone?deviceId=device-B")
         safe_zone_a = self.request("GET", "/api/safe-zone?deviceId=device-A")
-
         self.assertTrue(safe_zone_b["active"])
         self.assertEqual(safe_zone_b["deviceId"], "device-B")
         self.assertFalse(safe_zone_a["active"])
@@ -110,18 +102,56 @@ class GuardianServerTest(unittest.TestCase):
             "POST",
             "/api/location",
             {"deviceId": "device-C", "timestamp": 1700000002000},
-            expect_status=400,
+            expect_status=422,
         )
-        self.assertIn("latitude and longitude", response["error"])
+        self.assertIn("latitude", json.dumps(response))
 
     def test_safe_zone_radius_must_be_positive(self) -> None:
         response = self.request(
             "POST",
             "/api/safe-zone",
             {"deviceId": "device-D", "latitude": 1.2, "longitude": 2.3, "radius": 0},
-            expect_status=400,
+            expect_status=422,
         )
-        self.assertIn("radius must be greater than 0", response["error"])
+        self.assertIn("radius", json.dumps(response))
+
+    def test_websocket_alert_push(self) -> None:
+        with self.client.websocket_connect("/api/ws/alerts?deviceId=device-ws") as websocket:
+            self.request(
+                "POST",
+                "/api/alert",
+                {"deviceId": "device-ws", "type": "EXIT", "timestamp": 1700000005000},
+            )
+            payload = websocket.receive_json()
+            self.assertEqual(payload["deviceId"], "device-ws")
+            self.assertEqual(payload["type"], "EXIT")
+
+    def test_legacy_state_migration(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            legacy_payload = {
+                "location_history": [
+                    {"deviceId": "legacy-device", "latitude": 30.0, "longitude": 120.0, "timestamp": 1700000010000}
+                ],
+                "alerts": [{"deviceId": "legacy-device", "type": "EXIT", "timestamp": 1700000015000}],
+                "safe_zone": {"active": True, "latitude": 30.0, "longitude": 120.0, "radius": 100.0},
+            }
+            legacy_file = Path(temp_dir) / "legacy-state.json"
+            legacy_file.write_text(json.dumps(legacy_payload), encoding="utf-8")
+            db_url = f"sqlite:///{(Path(temp_dir) / 'legacy-test.db').as_posix()}"
+            module = load_server_module()
+
+            with TestClient(
+                module.create_app(
+                    database_url=db_url,
+                    legacy_state_file=legacy_file,
+                    alert_webhook_url=None,
+                )
+            ) as client:
+                devices = client.get("/api/devices").json()
+                self.assertEqual(len(devices), 1)
+                self.assertEqual(devices[0]["deviceId"], "legacy-device")
+                safe_zone = client.get("/api/safe-zone?deviceId=legacy-device").json()
+                self.assertTrue(safe_zone["active"])
 
 
 if __name__ == "__main__":

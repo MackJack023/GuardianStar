@@ -4,7 +4,7 @@
 
 <h1 align="center">GuardianStar</h1>
 <p align="center">
-  Multi-device family safety platform with Android apps and a lightweight Python backend.
+  Multi-device family safety platform with Android apps and a production-ready Python backend.
 </p>
 
 <p align="center">
@@ -12,10 +12,11 @@
   <a href="https://github.com/MackJack023/GuardianStar/releases"><img src="https://img.shields.io/github/v/release/MackJack023/GuardianStar?display_name=tag&logo=github" alt="Latest Release" /></a>
   <a href="https://github.com/MackJack023/GuardianStar/releases"><img src="https://img.shields.io/github/downloads/MackJack023/GuardianStar/total?logo=github" alt="Downloads" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/MackJack023/GuardianStar" alt="License" /></a>
-  <img src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white" alt="Android API 26+" />
+  <img src="https://img.shields.io/badge/Android-API%2024%2B-3DDC84?logo=android&logoColor=white" alt="Android API 24+" />
+  <img src="https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white" alt="Java 17" />
   <img src="https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 1.9" />
   <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12" />
-  <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready" />
+  <img src="https://img.shields.io/badge/FastAPI-Production-009688?logo=fastapi&logoColor=white" alt="FastAPI backend" />
 </p>
 
 <p align="center">
@@ -25,35 +26,35 @@
   <a href="#quick-start">Quick Start</a> |
   <a href="#api-surface">API</a> |
   <a href="#documentation">Docs</a> |
-  <a href="#roadmap">Roadmap</a> |
   <a href="#contributing">Contributing</a>
 </p>
 
 ## Overview
 
-GuardianStar is an end-to-end safety monitoring prototype with:
+GuardianStar is an end-to-end safety monitoring project with:
 
 - `Client` Android app (child device)
 - `Monitor` Android app (guardian device)
-- Python backend API with per-device state
+- FastAPI backend with SQLite persistence and WebSocket alert push
 
-The project supports real-time location reporting, safe-zone synchronization, geofence entry/exit alerts, multi-device dashboard monitoring, and automated CI build pipelines.
+The project supports location reporting, safe-zone synchronization, geofence entry/exit alerts, monitor push notifications, and CI-validated Android builds.
 
 ## Why This Project
 
 - Demonstrates a complete two-app + backend architecture
-- Uses a clean `deviceId` based data isolation model
-- Includes Dockerized backend startup for quick local deployment
-- Ships with GitHub Actions for tests, Android builds, and release artifacts
+- Uses a `deviceId`-scoped multi-device data model
+- Migrates legacy JSON state to SQLite automatically
+- Includes Dockerized backend startup and GitHub Actions pipelines
 
 ## Core Features
 
 - Multi-device tracking and monitor switching
 - Real-time location upload and latest location view
 - Safe-zone create/read/delete by `deviceId`
-- Android geofence integration on Client
-- Alert collection and visualization in Monitor
-- Backend persistence with `server_state.json`
+- Android geofence integration in Client app
+- Alert collection and local push notification in Monitor app
+- Backend persistence with SQLite (`guardianstar.db`)
+- Real-time alert stream over `WS /api/ws/alerts`
 
 ## System Architecture (One Diagram)
 
@@ -66,33 +67,31 @@ flowchart LR
     C1 --> C2 --> C3
   end
 
-  subgraph B["Backend API (Python)"]
-    B1["HTTP Handlers\n/api/*"]
-    B2["Per-device State\nlast_location/history/alerts/safe_zone"]
-    B3["server_state.json\npersistence"]
-    B1 --> B2 --> B3
+  subgraph B["Backend API (FastAPI)"]
+    B1["REST API\n/api/*"]
+    B2["SQLite + SQLAlchemy\nmulti-device state"]
+    B3["WebSocket Push\n/api/ws/alerts"]
+    B1 --> B2
+    B1 --> B3
   end
 
   subgraph M["Monitor App (Android)"]
     M1["MonitorActivity\nDevice Switch + Dashboard"]
     M2["MonitorApi\n/devices + per-device query"]
+    M3["AlertPushClient\nWebSocket + local notifications"]
     M1 --> M2
+    M1 --> M3
   end
 
   C3 -- "Upload location + geofence alerts" --> B1
   M2 -- "Read devices/latest/history/alerts\nSet or clear safe-zone" --> B1
+  B3 -- "Push EXIT/ENTER alerts" --> M3
   B1 -- "Safe-zone config by deviceId" --> C3
 ```
 
 Detailed architecture page: [docs/architecture.md](./docs/architecture.md)
 
 ## App Screenshots
-
-The screenshot set below is now rendered in a unified real-device style:
-
-- consistent aspect ratio and frame
-- rounded corners, drop shadow, and top status bar
-- ready to swap with future real captures while preserving README layout
 
 | Client Home | Client Settings |
 |---|---|
@@ -107,24 +106,24 @@ The screenshot set below is now rendered in a unified real-device style:
 | Layer | Stack |
 |---|---|
 | Client App | Kotlin, Jetpack Compose, Retrofit, Google Location/Geofence |
-| Monitor App | Kotlin, Jetpack Compose, Retrofit |
-| Backend | Python 3, `http.server`, JSON state persistence |
+| Monitor App | Kotlin, Jetpack Compose, Retrofit, OkHttp WebSocket, Android Notifications |
+| Backend | Python, FastAPI, SQLAlchemy, SQLite, WebSocket |
 | DevOps | GitHub Actions, Docker Compose |
 
 ## Repository Layout
 
 ```text
 .
-├─ Client/                # Child device Android app + unified Gradle entry
-│  ├─ src/main/...
-│  └─ server/             # Python backend + tests
-├─ Monitor/               # Guardian Android app module
-├─ docs/
-│  ├─ architecture.md
-│  ├─ releases/v1.0.0.md
-│  └─ assets/
-└─ .github/workflows/
-   └─ android-ci.yml
+|- Client/                  # Child app + Gradle entry + backend folder
+|  |- src/main/...
+|  |- server/               # FastAPI backend + DB migration + tests
+|- Monitor/                 # Guardian app module
+|- docs/
+|  |- architecture.md
+|  |- DEPLOYMENT.md
+|  |- REAL_DEVICE_VALIDATION.md
+|- .github/workflows/
+   |- android-ci.yml
 ```
 
 ## Quick Start
@@ -133,6 +132,7 @@ The screenshot set below is now rendered in a unified real-device style:
 
 ```bash
 cd Client/server
+pip install -r requirements.txt
 python server.py
 ```
 
@@ -144,7 +144,7 @@ Backend default address: `http://localhost:8080`
 docker compose up --build
 ```
 
-### 3. Build Both Android Apps
+### 3. Build Both Android Apps (Java 17 Target)
 
 ```bash
 cd Client
@@ -182,6 +182,15 @@ monitor.baseUrl=http://10.0.2.2:8080/
 amap.webApiKey=your-amap-web-api-key
 ```
 
+### Backend Environment
+
+```bash
+PORT=8080
+GUARDIANSTAR_DATABASE_URL=sqlite:///./guardianstar.db
+GUARDIANSTAR_LEGACY_STATE_FILE=./server_state.json
+GUARDIANSTAR_ALERT_WEBHOOK_URL=https://your-webhook-endpoint.example
+```
+
 ## API Surface
 
 ### Read Endpoints
@@ -199,11 +208,18 @@ amap.webApiKey=your-amap-web-api-key
 - `POST /api/alert`
 - `POST /api/safe-zone`
 - `DELETE /api/safe-zone?deviceId=...`
+- `POST /api/push/register`
+- `DELETE /api/push/register?token=...`
+
+### Realtime Endpoint
+
+- `WS /api/ws/alerts?deviceId=...`
 
 ## Documentation
 
 - Architecture: [docs/architecture.md](./docs/architecture.md)
 - Deployment guide: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+- Device validation checklist: [docs/REAL_DEVICE_VALIDATION.md](./docs/REAL_DEVICE_VALIDATION.md)
 - Release notes: [docs/releases/v1.0.1.md](./docs/releases/v1.0.1.md), [docs/releases/v1.0.0.md](./docs/releases/v1.0.0.md)
 - Changelog: [CHANGELOG.md](./CHANGELOG.md)
 
@@ -213,25 +229,18 @@ amap.webApiKey=your-amap-web-api-key
 - Android build check: `cd Client && .\gradlew.bat --no-daemon clean assembleDebug :monitor:assembleDebug`
 - CI workflow: [android-ci.yml](./.github/workflows/android-ci.yml)
 - Dependency update bot: [dependabot.yml](./.github/dependabot.yml)
-- Tag release notes: [docs/releases/v1.0.1.md](./docs/releases/v1.0.1.md)
 
 ## Roadmap
 
 - Introduce user authentication and guardian-child ownership model
-- Migrate state from JSON file to SQLite/PostgreSQL
-- Add push notification delivery for geofence alerts
-- Add production-grade API auth middleware and audit logging
+- Add PostgreSQL deployment profile for multi-instance backend
+- Add signed API auth tokens and ownership ACL
+- Add delivery retry and dead-letter queue for push provider
 - Improve map interaction and multi-device UX in Monitor app
-
-## Maturity Notes
-
-GuardianStar is release-tagged and CI-validated, but still positioned as a prototype platform rather than a production service. The next milestone should focus on auth, data durability, and security hardening.
 
 ## Contributing
 
 Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening pull requests.
-
-Issue and PR templates are pre-configured in `.github/`.
 
 ## Security
 

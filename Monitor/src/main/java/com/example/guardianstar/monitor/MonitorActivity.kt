@@ -1,11 +1,16 @@
 package com.example.guardianstar.monitor
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -49,6 +54,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,12 +71,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.example.guardianstar.monitor.network.AlertData
 import com.example.guardianstar.monitor.network.DeviceSummary
 import com.example.guardianstar.monitor.network.LocationData
 import com.example.guardianstar.monitor.network.RetrofitClient
 import com.example.guardianstar.monitor.network.SafeZoneRequest
 import com.example.guardianstar.monitor.network.SafeZoneState
+import com.example.guardianstar.monitor.push.AlertNotificationHelper
+import com.example.guardianstar.monitor.push.AlertPushClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -117,6 +126,34 @@ fun MonitorScreen() {
     var isConnected by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(true) }
     var isOutOfZone by remember { mutableStateOf(false) }
+    var pushConnected by remember { mutableStateOf(false) }
+    var lastNotifiedAlertKey by remember { mutableStateOf<String?>(null) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    val alertPushClient = remember {
+        AlertPushClient(
+            baseUrl = RetrofitClient.baseUrl,
+            onAlert = { alert ->
+                if (selectedDeviceId == null || selectedDeviceId == alert.deviceId) {
+                    alerts = (listOf(alert) + alerts.filterNot {
+                        it.deviceId == alert.deviceId && it.timestamp == alert.timestamp && it.type == alert.type
+                    }).take(100)
+                }
+                val alertKey = "${alert.deviceId}:${alert.timestamp}:${alert.type}"
+                val shouldNotify = !alert.type.equals("UNKNOWN", ignoreCase = true) && alertKey != lastNotifiedAlertKey
+                if (shouldNotify) {
+                    lastNotifiedAlertKey = alertKey
+                    AlertNotificationHelper.showAlertNotification(context, alert)
+                }
+            },
+            onConnectionChanged = { connected ->
+                pushConnected = connected
+            }
+        )
+    }
 
     fun renderSafeZone(zone: SafeZoneState) {
         val lat = zone.latitude
@@ -149,6 +186,27 @@ fun MonitorScreen() {
         isConnected = false
         webView?.evaluateJavascript("clearHistoryPath();", null)
         webView?.evaluateJavascript("removeCircle();", null)
+    }
+
+    LaunchedEffect(Unit) {
+        AlertNotificationHelper.ensureChannel(context)
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    LaunchedEffect(selectedDeviceId) {
+        alertPushClient.updateDevice(selectedDeviceId)
+    }
+
+    DisposableEffect(Unit) {
+        alertPushClient.start(selectedDeviceId)
+        onDispose {
+            alertPushClient.stop()
+        }
     }
 
     fun loadDevice(deviceId: String) {
@@ -300,7 +358,11 @@ fun MonitorScreen() {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            TopBar(isConnected = isConnected, onRefresh = { scope.launch { refreshAll() } })
+            TopBar(
+                isConnected = isConnected,
+                pushConnected = pushConnected,
+                onRefresh = { scope.launch { refreshAll() } }
+            )
             DeviceStrip(
                 devices = devices,
                 selectedDeviceId = selectedDeviceId,
@@ -388,7 +450,7 @@ fun MapModule(onWebViewCreated: (WebView) -> Unit) {
 }
 
 @Composable
-fun TopBar(isConnected: Boolean, onRefresh: () -> Unit) {
+fun TopBar(isConnected: Boolean, pushConnected: Boolean, onRefresh: () -> Unit) {
     Card(
         modifier = Modifier.padding(16.dp).fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -407,9 +469,26 @@ fun TopBar(isConnected: Boolean, onRefresh: () -> Unit) {
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Rounded.Refresh, contentDescription = "Refresh")
                 }
+                PushStatusChip(pushConnected)
+                Spacer(modifier = Modifier.width(8.dp))
                 StatusChip(isConnected)
             }
         }
+    }
+}
+
+@Composable
+fun PushStatusChip(pushConnected: Boolean) {
+    Surface(
+        color = if (pushConnected) Color(0xFFE3F2FD) else Color(0xFFFFF3E0),
+        shape = CircleShape
+    ) {
+        Text(
+            text = if (pushConnected) "Push On" else "Push Off",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            color = if (pushConnected) Color(0xFF1565C0) else Color(0xFFEF6C00),
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

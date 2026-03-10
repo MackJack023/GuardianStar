@@ -1,12 +1,10 @@
 package com.example.guardianstar.utils
 
 import android.content.Context
-import android.content.SharedPreferences
 
 object ServerConfig {
     private const val PREF_NAME = "server_config"
     private const val KEY_BASE_URL = "base_url"
-    // 默认地址 (模拟器)
     private const val DEFAULT_URL = "http://10.0.2.2:8080/"
 
     fun getBaseUrl(context: Context): String {

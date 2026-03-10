@@ -1,20 +1,30 @@
 from __future__ import annotations
 
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+import asyncio
 import datetime as dt
 import hashlib
 import json
 import os
 import sys
-from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, Request as FastAPIRequest, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, desc, func, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
+import uvicorn
 
 
-PORT = int(os.getenv("PORT", "8080"))
 MAX_HISTORY = 200
 MAX_ALERTS = 200
-STATE_FILE = Path(os.getenv("GUARDIANSTAR_STATE_FILE", str(Path(__file__).with_name("server_state.json"))))
 
 
 def now_timestamp_ms() -> int:
@@ -31,6 +41,297 @@ def anonymize_device_id(device_id: str) -> str:
         return "unknown"
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     return f"id:{digest[:10]}"
+
+
+def utc_now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
+
+
+@dataclass(slots=True)
+class Settings:
+    port: int
+    database_url: str
+    legacy_state_file: Path
+    alert_webhook_url: str | None
+    cors_origins: list[str]
+
+
+def load_settings(
+    *,
+    database_url: str | None = None,
+    legacy_state_file: Path | None = None,
+    alert_webhook_url: str | None = None,
+) -> Settings:
+    default_db_path = Path(__file__).with_name("guardianstar.db").as_posix()
+    resolved_database_url = database_url or os.getenv("GUARDIANSTAR_DATABASE_URL", f"sqlite:///{default_db_path}")
+    resolved_legacy_state_file = legacy_state_file or Path(
+        os.getenv(
+            "GUARDIANSTAR_LEGACY_STATE_FILE",
+            os.getenv("GUARDIANSTAR_STATE_FILE", str(Path(__file__).with_name("server_state.json"))),
+        )
+    )
+    resolved_alert_webhook_url = alert_webhook_url if alert_webhook_url is not None else os.getenv(
+        "GUARDIANSTAR_ALERT_WEBHOOK_URL", ""
+    ).strip()
+    cors_origins_raw = os.getenv("GUARDIANSTAR_CORS_ORIGINS", "*")
+    cors_origins = [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()] or ["*"]
+    return Settings(
+        port=int(os.getenv("PORT", "8080")),
+        database_url=resolved_database_url,
+        legacy_state_file=resolved_legacy_state_file,
+        alert_webhook_url=resolved_alert_webhook_url or None,
+        cors_origins=cors_origins,
+    )
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_id: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+    locations: Mapped[list["Location"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        order_by="Location.timestamp_ms",
+    )
+    alerts: Mapped[list["Alert"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        order_by="desc(Alert.timestamp_ms)",
+    )
+    safe_zone: Mapped["SafeZone | None"] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    push_tokens: Mapped[list["PushToken"]] = relationship(
+        back_populates="device",
+        cascade="all, delete-orphan",
+    )
+
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_fk: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True, nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    timestamp_ms: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    time_str: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    device: Mapped["Device"] = relationship(back_populates="locations")
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_fk: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True, nullable=False)
+    alert_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    timestamp_ms: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    time_str: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    device: Mapped["Device"] = relationship(back_populates="alerts")
+
+
+class SafeZone(Base):
+    __tablename__ = "safe_zones"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_fk: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), unique=True, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    radius: Mapped[float | None] = mapped_column(Float, nullable=True)
+    updated_at_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=now_timestamp_ms)
+
+    device: Mapped["Device"] = relationship(back_populates="safe_zone")
+
+
+class PushToken(Base):
+    __tablename__ = "push_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(512), unique=True, index=True, nullable=False)
+    platform: Mapped[str] = mapped_column(String(32), default="android", nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+    device_fk: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), nullable=True)
+
+    device: Mapped["Device | None"] = relationship(back_populates="push_tokens")
+
+
+class LocationIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    deviceId: str = Field(min_length=1, max_length=128)
+    latitude: float
+    longitude: float
+    timestamp: int | None = None
+
+
+class AlertIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    deviceId: str = Field(min_length=1, max_length=128)
+    type: str = Field(min_length=1, max_length=64)
+    timestamp: int | None = None
+
+
+class SafeZoneIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str = Field(min_length=1, max_length=128)
+    latitude: float
+    longitude: float
+    radius: float = Field(gt=0)
+
+
+class PushRegisterIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=10, max_length=512)
+    deviceId: str | None = Field(default=None, max_length=128)
+    platform: str = Field(default="android", max_length=32)
+
+
+def _extra_payload(payload_json: str | None) -> dict[str, Any]:
+    if not payload_json:
+        return {}
+    try:
+        loaded = json.loads(payload_json)
+    except json.JSONDecodeError:
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def serialize_location(location: Location, device_id: str) -> dict[str, Any]:
+    payload = _extra_payload(location.payload_json)
+    payload.update(
+        {
+            "deviceId": device_id,
+            "latitude": location.latitude,
+            "longitude": location.longitude,
+            "timestamp": location.timestamp_ms,
+            "time_str": location.time_str,
+        }
+    )
+    return payload
+
+
+def serialize_alert(alert: Alert, device_id: str) -> dict[str, Any]:
+    payload = _extra_payload(alert.payload_json)
+    payload.update(
+        {
+            "deviceId": device_id,
+            "type": alert.alert_type,
+            "timestamp": alert.timestamp_ms,
+            "time_str": alert.time_str,
+        }
+    )
+    return payload
+
+
+def serialize_safe_zone(safe_zone: SafeZone | None, *, device_id: str | None = None) -> dict[str, Any]:
+    if not safe_zone:
+        return {"active": False} if not device_id else {"active": False, "deviceId": device_id}
+
+    payload: dict[str, Any] = {
+        "active": bool(safe_zone.active),
+        "deviceId": device_id,
+        "updatedAt": safe_zone.updated_at_ms,
+    }
+    if safe_zone.active:
+        payload.update(
+            {
+                "latitude": safe_zone.latitude,
+                "longitude": safe_zone.longitude,
+                "radius": safe_zone.radius,
+            }
+        )
+    return payload
+
+
+def get_or_create_device(session: Session, device_id: str) -> Device:
+    device = session.scalar(select(Device).where(Device.device_id == device_id))
+    if device:
+        return device
+    device = Device(device_id=device_id)
+    session.add(device)
+    session.flush()
+    return device
+
+
+def latest_location_for_device(session: Session, device: Device) -> Location | None:
+    return session.scalar(
+        select(Location).where(Location.device_fk == device.id).order_by(desc(Location.timestamp_ms), desc(Location.id)).limit(1)
+    )
+
+
+def resolve_device(session: Session, device_id: str | None) -> Device | None:
+    if device_id:
+        return session.scalar(select(Device).where(Device.device_id == device_id))
+
+    latest_device_subquery = (
+        select(
+            Location.device_fk.label("device_fk"),
+            func.max(Location.timestamp_ms).label("max_timestamp"),
+        )
+        .group_by(Location.device_fk)
+        .subquery()
+    )
+    latest = session.execute(
+        select(Device)
+        .outerjoin(latest_device_subquery, latest_device_subquery.c.device_fk == Device.id)
+        .order_by(desc(func.coalesce(latest_device_subquery.c.max_timestamp, 0)), desc(Device.updated_at))
+        .limit(1)
+    ).scalar_one_or_none()
+    return latest
+
+
+def sorted_devices(session: Session) -> list[Device]:
+    latest_device_subquery = (
+        select(
+            Location.device_fk.label("device_fk"),
+            func.max(Location.timestamp_ms).label("max_timestamp"),
+        )
+        .group_by(Location.device_fk)
+        .subquery()
+    )
+    rows = session.execute(
+        select(Device)
+        .outerjoin(latest_device_subquery, latest_device_subquery.c.device_fk == Device.id)
+        .order_by(desc(func.coalesce(latest_device_subquery.c.max_timestamp, 0)), desc(Device.updated_at))
+    )
+    return [row[0] for row in rows]
+
+
+def device_summary(session: Session, device: Device) -> dict[str, Any]:
+    latest = latest_location_for_device(session, device)
+    safe_zone = session.scalar(select(SafeZone).where(SafeZone.device_fk == device.id))
+    return {
+        "deviceId": device.device_id,
+        "lastUpdatedAt": latest.timestamp_ms if latest else None,
+        "lastUpdatedText": latest.time_str if latest else None,
+        "latitude": latest.latitude if latest else None,
+        "longitude": latest.longitude if latest else None,
+        "safeZoneActive": bool(safe_zone.active) if safe_zone else False,
+    }
 
 
 def empty_device_state(device_id: str) -> dict[str, Any]:
@@ -64,7 +365,7 @@ def normalize_device_state(device_id: str, raw: dict[str, Any] | None) -> dict[s
     return device_state
 
 
-def migrate_state(raw: dict[str, Any]) -> dict[str, Any]:
+def migrate_legacy_raw_state(raw: dict[str, Any]) -> dict[str, Any]:
     devices: dict[str, Any] = {}
 
     if isinstance(raw.get("devices"), dict):
@@ -108,98 +409,177 @@ def migrate_state(raw: dict[str, Any]) -> dict[str, Any]:
             "updatedAt": safe_zone.get("updatedAt"),
         }
 
-    normalized = {
+    return {
         "devices": {
             device_id: normalize_device_state(device_id, device_state)
             for device_id, device_state in devices.items()
         }
     }
-    return normalized
 
 
-def load_state() -> dict[str, Any]:
-    if not STATE_FILE.exists():
-        return {"devices": {}}
+def _safe_float(value: Any, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _safe_int(value: Any, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def import_legacy_state_if_needed(session: Session, state_file: Path) -> None:
+    existing_devices = session.scalar(select(func.count()).select_from(Device)) or 0
+    if existing_devices > 0 or not state_file.exists():
+        return
 
     try:
-        raw = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        raw = json.loads(state_file.read_text(encoding="utf-8"))
     except Exception:
-        return {"devices": {}}
+        return
 
-    return migrate_state(raw)
+    normalized = migrate_legacy_raw_state(raw)
+    imported_locations = 0
+    imported_alerts = 0
+    imported_devices = 0
 
+    for device_id, device_state in normalized.get("devices", {}).items():
+        device = get_or_create_device(session, str(device_id))
+        imported_devices += 1
 
-STATE = load_state()
+        history = device_state.get("location_history", []) or []
+        if not history and device_state.get("last_location"):
+            history = [device_state["last_location"]]
 
+        for location in history:
+            timestamp = _safe_int(location.get("timestamp"), now_timestamp_ms())
+            latitude = _safe_float(location.get("latitude"), 0.0)
+            longitude = _safe_float(location.get("longitude"), 0.0)
+            payload = dict(location)
+            payload.update(
+                {
+                    "deviceId": device.device_id,
+                    "timestamp": timestamp,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "time_str": payload.get("time_str") or format_timestamp(timestamp),
+                }
+            )
+            session.add(
+                Location(
+                    device_fk=device.id,
+                    latitude=latitude,
+                    longitude=longitude,
+                    timestamp_ms=timestamp,
+                    time_str=payload["time_str"],
+                    payload_json=json.dumps(payload, ensure_ascii=False),
+                )
+            )
+            imported_locations += 1
 
-def save_state() -> None:
-    STATE_FILE.write_text(
-        json.dumps(STATE, ensure_ascii=False, indent=2),
-        encoding="utf-8",
+        for alert in device_state.get("alerts", []) or []:
+            timestamp = _safe_int(alert.get("timestamp"), now_timestamp_ms())
+            alert_type = str(alert.get("type") or "UNKNOWN")
+            payload = dict(alert)
+            payload.update(
+                {
+                    "deviceId": device.device_id,
+                    "type": alert_type,
+                    "timestamp": timestamp,
+                    "time_str": payload.get("time_str") or format_timestamp(timestamp),
+                }
+            )
+            session.add(
+                Alert(
+                    device_fk=device.id,
+                    alert_type=alert_type,
+                    timestamp_ms=timestamp,
+                    time_str=payload["time_str"],
+                    payload_json=json.dumps(payload, ensure_ascii=False),
+                )
+            )
+            imported_alerts += 1
+
+        safe_zone = device_state.get("safe_zone") or {}
+        if safe_zone.get("active"):
+            session.add(
+                SafeZone(
+                    device_fk=device.id,
+                    active=True,
+                    latitude=_safe_float(safe_zone.get("latitude"), 0.0),
+                    longitude=_safe_float(safe_zone.get("longitude"), 0.0),
+                    radius=_safe_float(safe_zone.get("radius"), 100.0),
+                    updated_at_ms=_safe_int(safe_zone.get("updatedAt"), now_timestamp_ms()),
+                )
+            )
+        else:
+            session.add(
+                SafeZone(
+                    device_fk=device.id,
+                    active=False,
+                    updated_at_ms=_safe_int(safe_zone.get("updatedAt"), now_timestamp_ms()),
+                )
+            )
+
+    session.commit()
+    print(
+        "[migration] imported legacy state "
+        f"devices={imported_devices} locations={imported_locations} alerts={imported_alerts}",
+        flush=True,
     )
 
 
-def json_response(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
-    handler.send_response(status)
-    handler.send_header("Content-Type", "application/json; charset=utf-8")
-    handler.end_headers()
-    handler.wfile.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+class AlertBroadcaster:
+    def __init__(self) -> None:
+        self._connections: list[tuple[WebSocket, str | None]] = []
+        self._lock = asyncio.Lock()
+
+    async def connect(self, websocket: WebSocket, device_id: str | None) -> None:
+        await websocket.accept()
+        async with self._lock:
+            self._connections.append((websocket, device_id))
+
+    async def disconnect(self, websocket: WebSocket) -> None:
+        async with self._lock:
+            self._connections = [(ws, target_device) for ws, target_device in self._connections if ws is not websocket]
+
+    async def broadcast(self, alert_payload: dict[str, Any]) -> None:
+        async with self._lock:
+            connections = list(self._connections)
+
+        stale_connections: list[WebSocket] = []
+        for websocket, target_device in connections:
+            if target_device and alert_payload.get("deviceId") != target_device:
+                continue
+            try:
+                await websocket.send_json(alert_payload)
+            except Exception:
+                stale_connections.append(websocket)
+
+        for websocket in stale_connections:
+            await self.disconnect(websocket)
 
 
-def parse_request(handler: BaseHTTPRequestHandler) -> tuple[str, dict[str, str]]:
-    parsed = urlparse(handler.path)
-    query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
-    return parsed.path, query
-
-
-def get_device_state(device_id: str, create: bool = False) -> dict[str, Any] | None:
-    devices = STATE.setdefault("devices", {})
-    if create and device_id not in devices:
-        devices[device_id] = empty_device_state(device_id)
-    return devices.get(device_id)
-
-
-def sorted_devices() -> list[dict[str, Any]]:
-    devices = list(STATE.get("devices", {}).values())
-
-    def sort_key(device_state: dict[str, Any]) -> int:
-        return int(device_state.get("last_location", {}).get("timestamp", 0))
-
-    return sorted(devices, key=sort_key, reverse=True)
-
-
-def latest_device_state() -> dict[str, Any] | None:
-    devices = sorted_devices()
-    return devices[0] if devices else None
-
-
-def resolve_device_state(device_id: str | None) -> dict[str, Any] | None:
-    if device_id:
-        return get_device_state(device_id, create=False)
-    return latest_device_state()
-
-
-def html_page() -> str:
-    active_device = latest_device_state()
-    device_count = len(STATE.get("devices", {}))
-
-    if not active_device or not active_device.get("last_location"):
-        status_html = "<p>Waiting for a child device to upload location data...</p>"
-        location_summary = "No device connected yet"
+def build_dashboard_html(device_count: int, latest_device_summary: dict[str, Any] | None) -> str:
+    if not latest_device_summary:
+        status_html = "<p>Waiting for tracked devices...</p>"
+        location_summary = "No location available"
     else:
-        last_location = active_device["last_location"]
-        safe_zone = active_device["safe_zone"]
-        latitude = last_location.get("latitude")
-        longitude = last_location.get("longitude")
+        latitude = latest_device_summary.get("latitude")
+        longitude = latest_device_summary.get("longitude")
         if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
             location_summary = f"{float(latitude):.5f}, {float(longitude):.5f}"
         else:
             location_summary = "Unknown"
+
         status_html = f"""
-            <div class="info-item"><span class="label">Device:</span><span class="value">{active_device['deviceId'][-6:].upper()}</span></div>
-            <div class="info-item"><span class="label">Updated:</span><span class="value">{last_location.get('time_str')}</span></div>
+            <div class="info-item"><span class="label">Device:</span><span class="value">{str(latest_device_summary['deviceId'])[-6:].upper()}</span></div>
+            <div class="info-item"><span class="label">Updated:</span><span class="value">{latest_device_summary.get('lastUpdatedText') or '-'}</span></div>
             <div class="info-item"><span class="label">Location:</span><span class="value">{location_summary}</span></div>
-            <div class="info-item"><span class="label">Safe Zone:</span><span class="value">{'Active' if safe_zone.get('active') else 'Not configured'}</span></div>
+            <div class="info-item"><span class="label">Safe Zone:</span><span class="value">{'Active' if latest_device_summary.get('safeZoneActive') else 'Not configured'}</span></div>
             <div class="info-item"><span class="label">Devices:</span><span class="value">{device_count}</span></div>
         """
 
@@ -210,7 +590,7 @@ def html_page() -> str:
         <meta charset="utf-8">
         <meta http-equiv="refresh" content="10">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GuardianStar Monitor</title>
+        <title>GuardianStar Backend</title>
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -273,214 +653,346 @@ def html_page() -> str:
     """
 
 
-def device_summary(device_state: dict[str, Any]) -> dict[str, Any]:
-    last_location = device_state.get("last_location", {})
-    timestamp = last_location.get("timestamp")
-    return {
-        "deviceId": device_state["deviceId"],
-        "lastUpdatedAt": timestamp,
-        "lastUpdatedText": last_location.get("time_str"),
-        "latitude": last_location.get("latitude"),
-        "longitude": last_location.get("longitude"),
-        "safeZoneActive": bool(device_state.get("safe_zone", {}).get("active", False)),
-    }
+def post_alert_webhook(webhook_url: str, payload: dict[str, Any]) -> None:
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = Request(
+        webhook_url,
+        data=data,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=8) as response:
+            if response.status >= 400:
+                print(f"[push] webhook failed status={response.status}", flush=True)
+    except (HTTPError, URLError, TimeoutError) as error:
+        print(f"[push] webhook error={error}", flush=True)
 
 
-class LocationHandler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:
-        path, query = parse_request(self)
+def create_app(
+    *,
+    database_url: str | None = None,
+    legacy_state_file: Path | None = None,
+    alert_webhook_url: str | None = None,
+) -> FastAPI:
+    settings = load_settings(
+        database_url=database_url,
+        legacy_state_file=legacy_state_file,
+        alert_webhook_url=alert_webhook_url,
+    )
 
-        if path == "/":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(html_page().encode("utf-8"))
-            return
+    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
+    session_factory = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
+    broadcaster = AlertBroadcaster()
 
-        if path == "/api/health":
-            json_response(self, 200, {"status": "ok", "time": format_timestamp(now_timestamp_ms())})
-            return
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        Base.metadata.create_all(bind=engine)
+        with session_factory() as session:
+            import_legacy_state_if_needed(session, settings.legacy_state_file)
 
-        if path == "/api/devices":
-            json_response(self, 200, [device_summary(device) for device in sorted_devices()])
-            return
+        print("GuardianStar backend started", flush=True)
+        print(f"Database: {settings.database_url}", flush=True)
+        print(f"Health: http://localhost:{settings.port}/api/health", flush=True)
+        print(f"Devices: http://localhost:{settings.port}/api/devices", flush=True)
+        print(f"Latest location: http://localhost:{settings.port}/api/latest", flush=True)
+        print(f"Alert stream: ws://localhost:{settings.port}/api/ws/alerts", flush=True)
+        print(f"Monitor page: http://localhost:{settings.port}/", flush=True)
+        yield
+        engine.dispose()
 
-        if path == "/api/latest":
-            device = resolve_device_state(query.get("deviceId"))
-            json_response(self, 200, device.get("last_location", {}) if device else {})
-            return
+    app = FastAPI(
+        title="GuardianStar Backend",
+        version="2.0.0",
+        lifespan=lifespan,
+    )
 
-        if path == "/api/history":
-            device = resolve_device_state(query.get("deviceId"))
-            json_response(self, 200, device.get("location_history", []) if device else [])
-            return
+    app.add_middleware(GZipMiddleware, minimum_size=512)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-        if path == "/api/alerts":
-            device = resolve_device_state(query.get("deviceId"))
-            json_response(self, 200, device.get("alerts", []) if device else [])
-            return
+    @app.middleware("http")
+    async def add_response_security_headers(
+        request: FastAPIRequest,
+        call_next,
+    ):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
-        if path == "/api/safe-zone":
-            device = resolve_device_state(query.get("deviceId"))
-            if not device:
-                json_response(self, 200, {"active": False})
-                return
-            json_response(self, 200, device.get("safe_zone", {"active": False}))
-            return
-
-        json_response(self, 404, {"error": "Not found"})
-
-    def do_POST(self) -> None:
-        path, _query = parse_request(self)
-        content_length = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(content_length) if content_length else b"{}"
-
+    def get_session() -> Session:
+        session = session_factory()
         try:
-            payload = json.loads(body.decode("utf-8"))
-        except Exception:
-            json_response(self, 400, {"error": "Invalid JSON"})
-            return
+            yield session
+        finally:
+            session.close()
 
-        if path == "/api/location":
-            device_id = str(payload.get("deviceId") or "").strip()
-            if not device_id:
-                json_response(self, 400, {"error": "deviceId is required"})
-                return
+    @app.get("/", response_class=HTMLResponse)
+    def index(session: Session = Depends(get_session)) -> str:
+        devices = sorted_devices(session)
+        latest_summary = device_summary(session, devices[0]) if devices else None
+        return build_dashboard_html(device_count=len(devices), latest_device_summary=latest_summary)
 
-            try:
-                latitude = float(payload["latitude"])
-                longitude = float(payload["longitude"])
-            except (KeyError, TypeError, ValueError):
-                json_response(self, 400, {"error": "latitude and longitude are required"})
-                return
+    @app.get("/api/health")
+    def health_check() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "time": format_timestamp(now_timestamp_ms()),
+            "database": "ok",
+            "push": "websocket",
+            "framework": "fastapi",
+        }
 
-            try:
-                timestamp = int(payload.get("timestamp", now_timestamp_ms()))
-            except (TypeError, ValueError):
-                timestamp = now_timestamp_ms()
+    @app.get("/api/devices")
+    def list_devices(session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+        return [device_summary(session, device) for device in sorted_devices(session)]
 
-            location_payload = dict(payload)
-            location_payload["deviceId"] = device_id
-            location_payload["latitude"] = latitude
-            location_payload["longitude"] = longitude
-            location_payload["timestamp"] = timestamp
-            location_payload["time_str"] = format_timestamp(timestamp)
+    @app.get("/api/latest")
+    def latest_location(
+        deviceId: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> dict[str, Any]:
+        device = resolve_device(session, deviceId)
+        if not device:
+            return {}
+        latest = latest_location_for_device(session, device)
+        return serialize_location(latest, device.device_id) if latest else {}
 
-            device = get_device_state(device_id, create=True)
-            device["last_location"] = location_payload
-            device["location_history"].append(location_payload)
-            device["location_history"] = device["location_history"][-MAX_HISTORY:]
-            save_state()
+    @app.get("/api/history")
+    def location_history(
+        deviceId: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> list[dict[str, Any]]:
+        device = resolve_device(session, deviceId)
+        if not device:
+            return []
+        rows = session.scalars(
+            select(Location)
+            .where(Location.device_fk == device.id)
+            .order_by(desc(Location.timestamp_ms), desc(Location.id))
+            .limit(MAX_HISTORY)
+        ).all()
+        rows = list(reversed(rows))
+        return [serialize_location(location, device.device_id) for location in rows]
 
-            print(
-                f"[location] device={anonymize_device_id(device_id)} "
-                f"time={location_payload['time_str']}"
-            )
-            json_response(self, 200, {"status": "success"})
-            return
+    @app.get("/api/alerts")
+    def alerts(
+        deviceId: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> list[dict[str, Any]]:
+        device = resolve_device(session, deviceId)
+        if not device:
+            return []
+        rows = session.scalars(
+            select(Alert).where(Alert.device_fk == device.id).order_by(desc(Alert.timestamp_ms), desc(Alert.id)).limit(MAX_ALERTS)
+        ).all()
+        return [serialize_alert(alert_row, device.device_id) for alert_row in rows]
 
-        if path == "/api/alert":
-            device_id = str(payload.get("deviceId") or "").strip()
-            if not device_id:
-                json_response(self, 400, {"error": "deviceId is required"})
-                return
+    @app.get("/api/safe-zone")
+    def safe_zone(
+        deviceId: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> dict[str, Any]:
+        device = resolve_device(session, deviceId)
+        if not device:
+            return {"active": False}
+        zone = session.scalar(select(SafeZone).where(SafeZone.device_fk == device.id))
+        return serialize_safe_zone(zone, device_id=device.device_id)
 
-            timestamp = int(payload.get("timestamp", now_timestamp_ms()))
-            payload["time_str"] = format_timestamp(timestamp)
+    @app.post("/api/location")
+    def post_location(payload: LocationIn, session: Session = Depends(get_session)) -> dict[str, str]:
+        device = get_or_create_device(session, payload.deviceId.strip())
+        timestamp = payload.timestamp if payload.timestamp is not None else now_timestamp_ms()
+        latitude = float(payload.latitude)
+        longitude = float(payload.longitude)
 
-            device = get_device_state(device_id, create=True)
-            device["alerts"].insert(0, payload)
-            device["alerts"] = device["alerts"][:MAX_ALERTS]
-            save_state()
-
-            print(
-                f"[alert] device={anonymize_device_id(device_id)} "
-                f"time={payload['time_str']} type={payload.get('type')}"
-            )
-            json_response(self, 200, {"status": "success"})
-            return
-
-        if path == "/api/safe-zone":
-            device_id = str(payload.get("deviceId") or "").strip()
-            if not device_id:
-                json_response(self, 400, {"error": "deviceId is required"})
-                return
-
-            try:
-                latitude = float(payload["latitude"])
-                longitude = float(payload["longitude"])
-                radius = float(payload.get("radius", 100.0))
-            except (KeyError, TypeError, ValueError):
-                json_response(self, 400, {"error": "latitude, longitude and radius are required"})
-                return
-            if radius <= 0:
-                json_response(self, 400, {"error": "radius must be greater than 0"})
-                return
-
-            device = get_device_state(device_id, create=True)
-            device["safe_zone"] = {
-                "active": True,
-                "deviceId": device_id,
+        data = payload.model_dump()
+        data.update(
+            {
+                "deviceId": device.device_id,
                 "latitude": latitude,
                 "longitude": longitude,
-                "radius": radius,
-                "updatedAt": now_timestamp_ms(),
+                "timestamp": timestamp,
+                "time_str": format_timestamp(timestamp),
             }
-            save_state()
+        )
 
-            print(
-                f"[safe-zone] device={anonymize_device_id(device_id)} "
-                f"active radius={radius}"
+        session.add(
+            Location(
+                device_fk=device.id,
+                latitude=latitude,
+                longitude=longitude,
+                timestamp_ms=timestamp,
+                time_str=data["time_str"],
+                payload_json=json.dumps(data, ensure_ascii=False),
             )
-            json_response(self, 200, device["safe_zone"])
-            return
+        )
+        device.updated_at = utc_now()
+        session.commit()
 
-        json_response(self, 404, {"error": "Not found"})
+        print(
+            f"[location] device={anonymize_device_id(device.device_id)} time={data['time_str']}",
+            flush=True,
+        )
+        return {"status": "success"}
 
-    def do_DELETE(self) -> None:
-        path, query = parse_request(self)
+    @app.post("/api/alert")
+    async def post_alert(payload: AlertIn, session: Session = Depends(get_session)) -> dict[str, str]:
+        device = get_or_create_device(session, payload.deviceId.strip())
+        timestamp = payload.timestamp if payload.timestamp is not None else now_timestamp_ms()
+        alert_type = payload.type.strip().upper()
 
-        if path == "/api/safe-zone":
-            device_id = str(query.get("deviceId") or "").strip()
-            if not device_id:
-                latest = latest_device_state()
-                if latest:
-                    device_id = latest["deviceId"]
-
-            if not device_id:
-                json_response(self, 400, {"error": "deviceId is required"})
-                return
-
-            device = get_device_state(device_id, create=True)
-            device["safe_zone"] = {
-                "active": False,
-                "deviceId": device_id,
-                "updatedAt": now_timestamp_ms(),
+        data = payload.model_dump()
+        data.update(
+            {
+                "deviceId": device.device_id,
+                "type": alert_type,
+                "timestamp": timestamp,
+                "time_str": format_timestamp(timestamp),
             }
-            save_state()
-            print(f"[safe-zone] device={anonymize_device_id(device_id)} cleared")
-            json_response(self, 200, device["safe_zone"])
-            return
+        )
 
-        json_response(self, 404, {"error": "Not found"})
+        alert_row = Alert(
+            device_fk=device.id,
+            alert_type=alert_type,
+            timestamp_ms=timestamp,
+            time_str=data["time_str"],
+            payload_json=json.dumps(data, ensure_ascii=False),
+        )
+        session.add(alert_row)
+        device.updated_at = utc_now()
+        session.commit()
+        session.refresh(alert_row)
 
-    def log_message(self, _format: str, *_args: Any) -> None:
-        return
+        alert_payload = serialize_alert(alert_row, device.device_id)
+        await broadcaster.broadcast(alert_payload)
+        if settings.alert_webhook_url:
+            asyncio.create_task(asyncio.to_thread(post_alert_webhook, settings.alert_webhook_url, alert_payload))
+
+        print(
+            "[alert] "
+            f"device={anonymize_device_id(device.device_id)} "
+            f"time={data['time_str']} type={alert_type}",
+            flush=True,
+        )
+        return {"status": "success"}
+
+    @app.post("/api/safe-zone")
+    def set_safe_zone(payload: SafeZoneIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+        device = get_or_create_device(session, payload.deviceId.strip())
+        zone = session.scalar(select(SafeZone).where(SafeZone.device_fk == device.id))
+        if not zone:
+            zone = SafeZone(device_fk=device.id)
+            session.add(zone)
+
+        zone.active = True
+        zone.latitude = float(payload.latitude)
+        zone.longitude = float(payload.longitude)
+        zone.radius = float(payload.radius)
+        zone.updated_at_ms = now_timestamp_ms()
+        device.updated_at = utc_now()
+        session.commit()
+
+        print(
+            f"[safe-zone] device={anonymize_device_id(device.device_id)} active radius={zone.radius}",
+            flush=True,
+        )
+        return serialize_safe_zone(zone, device_id=device.device_id)
+
+    @app.delete("/api/safe-zone")
+    def clear_safe_zone(
+        deviceId: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> dict[str, Any]:
+        device = resolve_device(session, deviceId)
+        if not device:
+            raise HTTPException(status_code=400, detail="deviceId is required")
+
+        zone = session.scalar(select(SafeZone).where(SafeZone.device_fk == device.id))
+        if not zone:
+            zone = SafeZone(device_fk=device.id)
+            session.add(zone)
+
+        zone.active = False
+        zone.latitude = None
+        zone.longitude = None
+        zone.radius = None
+        zone.updated_at_ms = now_timestamp_ms()
+        device.updated_at = utc_now()
+        session.commit()
+
+        print(f"[safe-zone] device={anonymize_device_id(device.device_id)} cleared", flush=True)
+        return serialize_safe_zone(zone, device_id=device.device_id)
+
+    @app.post("/api/push/register")
+    def register_push_token(payload: PushRegisterIn, session: Session = Depends(get_session)) -> dict[str, Any]:
+        token = payload.token.strip()
+        if not token:
+            raise HTTPException(status_code=400, detail="token is required")
+
+        token_row = session.scalar(select(PushToken).where(PushToken.token == token))
+        if not token_row:
+            token_row = PushToken(token=token)
+            session.add(token_row)
+
+        token_row.platform = payload.platform
+        token_row.active = True
+        token_row.updated_at = utc_now()
+        if payload.deviceId:
+            token_row.device = get_or_create_device(session, payload.deviceId.strip())
+        else:
+            token_row.device = None
+        session.commit()
+        return {"status": "registered"}
+
+    @app.delete("/api/push/register")
+    def deactivate_push_token(token: str, session: Session = Depends(get_session)) -> dict[str, Any]:
+        token_row = session.scalar(select(PushToken).where(PushToken.token == token))
+        if token_row:
+            token_row.active = False
+            token_row.updated_at = utc_now()
+            session.commit()
+        return {"status": "removed"}
+
+    @app.websocket("/api/ws/alerts")
+    async def alert_ws(websocket: WebSocket) -> None:
+        device_id = websocket.query_params.get("deviceId")
+        await broadcaster.connect(websocket, device_id)
+        try:
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect:
+            await broadcaster.disconnect(websocket)
+        except Exception:
+            await broadcaster.disconnect(websocket)
+
+    return app
+
+
+app = create_app()
+
+
+def run() -> None:
+    settings = load_settings()
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=settings.port,
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":
-    server_address = ("", PORT)
-    ThreadingHTTPServer.allow_reuse_address = True
-    httpd = ThreadingHTTPServer(server_address, LocationHandler)
-
-    print("GuardianStar backend started")
-    print(f"Health: http://localhost:{PORT}/api/health")
-    print(f"Devices: http://localhost:{PORT}/api/devices")
-    print(f"Latest location: http://localhost:{PORT}/api/latest")
-    print(f"Monitor page: http://localhost:{PORT}/")
-
     try:
-        httpd.serve_forever()
+        run()
     except KeyboardInterrupt:
-        print("\nServer stopped")
+        print("\nServer stopped", flush=True)
         sys.exit(0)

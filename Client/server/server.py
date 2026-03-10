@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 import datetime as dt
+import hashlib
 import json
 import os
 import sys
@@ -22,6 +23,14 @@ def now_timestamp_ms() -> int:
 
 def format_timestamp(timestamp_ms: int) -> str:
     return dt.datetime.fromtimestamp(timestamp_ms / 1000.0).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def anonymize_device_id(device_id: str) -> str:
+    normalized = str(device_id or "").strip()
+    if not normalized:
+        return "unknown"
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return f"id:{digest[:10]}"
 
 
 def empty_device_state(device_id: str) -> dict[str, Any]:
@@ -364,8 +373,8 @@ class LocationHandler(BaseHTTPRequestHandler):
             save_state()
 
             print(
-                f"[location] device={device_id} time={location_payload['time_str']} "
-                f"lat={location_payload.get('latitude')} lng={location_payload.get('longitude')}"
+                f"[location] device={anonymize_device_id(device_id)} "
+                f"time={location_payload['time_str']}"
             )
             json_response(self, 200, {"status": "success"})
             return
@@ -384,7 +393,10 @@ class LocationHandler(BaseHTTPRequestHandler):
             device["alerts"] = device["alerts"][:MAX_ALERTS]
             save_state()
 
-            print(f"[alert] device={device_id} time={payload['time_str']} type={payload.get('type')}")
+            print(
+                f"[alert] device={anonymize_device_id(device_id)} "
+                f"time={payload['time_str']} type={payload.get('type')}"
+            )
             json_response(self, 200, {"status": "success"})
             return
 
@@ -416,7 +428,10 @@ class LocationHandler(BaseHTTPRequestHandler):
             }
             save_state()
 
-            print(f"[safe-zone] device={device_id} active lat={latitude} lng={longitude} radius={radius}")
+            print(
+                f"[safe-zone] device={anonymize_device_id(device_id)} "
+                f"active radius={radius}"
+            )
             json_response(self, 200, device["safe_zone"])
             return
 
@@ -443,7 +458,7 @@ class LocationHandler(BaseHTTPRequestHandler):
                 "updatedAt": now_timestamp_ms(),
             }
             save_state()
-            print(f"[safe-zone] device={device_id} cleared")
+            print(f"[safe-zone] device={anonymize_device_id(device_id)} cleared")
             json_response(self, 200, device["safe_zone"])
             return
 
